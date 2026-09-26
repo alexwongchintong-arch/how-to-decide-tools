@@ -1,6 +1,6 @@
-# 对赌决策工具集（DuiDu Decision Tools）
+# How to Decide 决策工具集（对赌·实践版）
 
-一套基于安妮·杜克《对赌：实践版》（*Thinking in Bets* 实践篇）各章方法论制作的**纯前端决策工具集**。按照"决策前 → 决策中 → 决策后复盘"的完整链路，覆盖书中第一章到第八章的核心练习方法。
+一套基于安妮·杜克《对赌·实践版》（*How to Decide: Simple Tools for Making Better Choices*）各章方法论制作的**纯前端决策工具集**。按照"决策前 → 决策中 → 决策后复盘"的完整链路，覆盖书中第一章到第八章的核心练习方法。
 
 - **零依赖、零构建**：每个工具都是一个独立的单文件 HTML，双击即可在浏览器中使用，离线可用。
 - **数据完全本地**：所有填写内容只保存在你自己浏览器的 `localStorage` 中，没有任何网络请求、没有追踪、没有服务器。
@@ -33,17 +33,17 @@
 克隆本仓库后，双击任意 `.html` 文件即可在浏览器中打开使用，无需安装任何东西。
 
 ```bash
-git clone https://github.com/alexwongchintong-arch/duidui-decision-tools.git
+git clone https://github.com/alexwongchintong-arch/how-to-decide-tools.git
 ```
 
 **方式二：GitHub Pages（在线预览）**
 在仓库设置中开启 GitHub Pages（Source 选 `main` 分支根目录）后，所有工具即可在线直接使用，无需下载：
 
-- 落地页（工具导航）：`https://alexwongchintong-arch.github.io/duidui-decision-tools/`
+- 落地页（工具导航）：`https://alexwongchintong-arch.github.io/how-to-decide-tools/`
 - 每个工具都可以单独打开，例如：
-  - 辅助决策工具箱：`https://alexwongchintong-arch.github.io/duidui-decision-tools/工具箱/辅助决策工具箱/`
-  - 六步决策向导：`https://alexwongchintong-arch.github.io/duidui-decision-tools/辅助决策/six-step.html`
-  - 幸运箱：`https://alexwongchintong-arch.github.io/duidui-decision-tools/复盘/luck-box.html`
+  - 辅助决策工具箱：`https://alexwongchintong-arch.github.io/how-to-decide-tools/工具箱/辅助决策工具箱/`
+  - 六步决策向导：`https://alexwongchintong-arch.github.io/how-to-decide-tools/辅助决策/six-step.html`
+  - 幸运箱：`https://alexwongchintong-arch.github.io/how-to-decide-tools/复盘/luck-box.html`
 
 > 本仓库所有工具均为免构建的单文件 HTML，文件路径即访问路径，Pages 开启后无需任何额外配置。
 
@@ -61,7 +61,7 @@ git clone https://github.com/alexwongchintong-arch/duidui-decision-tools.git
 ## 目录结构
 
 ```
-duidui-decision-tools/
+how-to-decide-tools/
 ├── index.html              # GitHub Pages 落地页（工具导航）
 ├── 辅助决策/               # 决策前 / 决策中：4 个独立工具
 │   ├── six-step.html
@@ -97,4 +97,4 @@ duidui-decision-tools/
 ## 许可与声明
 
 - 代码以 [MIT License](LICENSE) 开源。
-- 本项目是读者基于《对赌：实践版》方法论的**学习实践作品**，工具中的示例仅用于说明方法；本项目与书籍作者及出版方无关，相关方法论的思想版权归属原作者。如需引用书中原文，请购买正版书籍。
+- 本项目是读者基于《对赌·实践版》（*How to Decide*）方法论的**学习实践作品**，工具中的示例仅用于说明方法；本项目与书籍作者及出版方无关，相关方法论的思想版权归属原作者。如需引用书中原文，请购买正版书籍。
