@@ -1,4 +1,4 @@
-# How to Decide 决策工具集（对赌·实践版）
+# Scientific Decide and Review Toolkit（科学决策与复盘工具箱）
 
 一套基于安妮·杜克《对赌·实践版》（*How to Decide: Simple Tools for Making Better Choices*）各章方法论制作的**纯前端决策工具集**。按照"决策前 → 决策中 → 决策后复盘"的完整链路，覆盖书中第一章到第八章的核心练习方法。
 
@@ -8,26 +8,26 @@
 
 ## 工具清单
 
+### 组合工具箱（推荐使用）
+
+| 工具箱 | 文件 | 说明 |
+| --- | --- | --- |
+| [辅助决策工具箱](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96%E5%B7%A5%E5%85%B7%E7%AE%B1/) | [`工具箱/辅助决策工具箱/index.html`](工具箱/辅助决策工具箱/index.html) | 将六步决策、内外视角、决策配速、事前验尸四个模块组合成一条决策前的完整向导，支持多轮事前验尸与报告归档 |
+| [决策复盘工具箱](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E5%86%B3%E7%AD%96%E5%A4%8D%E7%9B%98%E5%B7%A5%E5%85%B7%E7%AE%B1/) | [`工具箱/决策复盘工具箱/index.html`](工具箱/决策复盘工具箱/index.html) | 将幸运箱、知识跟踪器、反事实检验等整合为"四阶段完整复盘"流程，可读取独立工具沉淀的基准库数据 |
+
 ### 独立工具（按书中章节顺序）
 
 | 章节 | 工具 | 文件 | 说明 |
 | --- | --- | --- | --- |
-| 第一章 | [幸运箱 · 四象限复盘](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%A4%8D%E7%9B%98/luck-box.html) | [`复盘/luck-box.html`](复盘/luck-box.html) | 用"决策质量 × 结果好坏"四象限区分运气与实力，避免结果论 |
-| 第二章 | [知识跟踪器 · 后视偏差检验](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%A4%8D%E7%9B%98/knowledge-tracker.html) | [`复盘/knowledge-tracker.html`](复盘/knowledge-tracker.html) | 记录决策时"当时知道什么"，对抗"我早就知道"的后视偏差 |
-| 第三章 | [重建决策树 · 反事实检验](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%A4%8D%E7%9B%98/counterfactual.html) | [`复盘/counterfactual.html`](复盘/counterfactual.html) | 重建决策时的选项树，用反事实推演检验当时的判断 |
-| 第四章 | [六步决策向导](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/six-step.html) | [`辅助决策/six-step.html`](辅助决策/six-step.html) | 走通书中标准的六步决策流程，结构化输出决策依据 |
-| 第六章 | [观点跟踪 · 内外视角校准](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/perspective.html) | [`辅助决策/perspective.html`](辅助决策/perspective.html) | 用外部基准概率校准内部直觉判断，并沉淀个人判断基准库 |
-| 第七章 | [快速决策指南 · 快与慢的权衡](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/decision-pacing.html) | [`辅助决策/decision-pacing.html`](辅助决策/decision-pacing.html) | 判断决策值得花多少时间：可逆性、影响度与截止日期评估 |
-| 第八章 | [事前验尸 · 倒推与承诺](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/pre-mortem.html) | [`辅助决策/pre-mortem.html`](辅助决策/pre-mortem.html) | 假设未来已经失败，倒推失败原因，提前做出承诺与预案 |
+| 第一章 | [幸运箱 · 四象限复盘](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%A4%8D%E7%9B%98/luck-box.html) | [`复盘/luck-box.html`](复盘/luck-box.html) | 用"决策质量 × 结果好坏"四象限区分运气与实力，避免结果论 |
+| 第二章 | [知识跟踪器 · 后视偏差检验](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%A4%8D%E7%9B%98/knowledge-tracker.html) | [`复盘/knowledge-tracker.html`](复盘/knowledge-tracker.html) | 记录决策时"当时知道什么"，对抗"我早就知道"的后视偏差 |
+| 第三章 | [重建决策树 · 反事实检验](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%A4%8D%E7%9B%98/counterfactual.html) | [`复盘/counterfactual.html`](复盘/counterfactual.html) | 重建决策时的选项树，用反事实推演检验当时的判断 |
+| 第四章 | [六步决策向导](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/six-step.html) | [`辅助决策/six-step.html`](辅助决策/six-step.html) | 走通书中标准的六步决策流程，结构化输出决策依据 |
+| 第六章 | [观点跟踪 · 内外视角校准](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/perspective.html) | [`辅助决策/perspective.html`](辅助决策/perspective.html) | 用外部基准概率校准内部直觉判断，并沉淀个人判断基准库（通用工具：决策前校准与复盘检验均可使用） |
+| 第七章 | [快速决策指南 · 快与慢的权衡](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/decision-pacing.html) | [`辅助决策/decision-pacing.html`](辅助决策/decision-pacing.html) | 判断决策值得花多少时间：可逆性、影响度与截止日期评估 |
+| 第八章 | [事前验尸 · 倒推与承诺](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/pre-mortem.html) | [`辅助决策/pre-mortem.html`](辅助决策/pre-mortem.html) | 假设未来已经失败，倒推失败原因，提前做出承诺与预案 |
 
 > 点击"工具"列的名称即可在线打开使用；"文件"列是仓库中的源码文件。
-
-### 组合工具箱
-
-| 工具箱 | 文件 | 说明 |
-| --- | --- | --- |
-| [辅助决策工具箱](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96%E5%B7%A5%E5%85%B7%E7%AE%B1/) | [`工具箱/辅助决策工具箱/index.html`](工具箱/辅助决策工具箱/index.html) | 将六步决策、内外视角、决策配速、事前验尸四个模块组合成一条决策前的完整向导，支持多轮事前验尸与报告归档 |
-| [决策复盘工具箱](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E5%86%B3%E7%AD%96%E5%A4%8D%E7%9B%98%E5%B7%A5%E5%85%B7%E7%AE%B1/) | [`工具箱/决策复盘工具箱/index.html`](工具箱/决策复盘工具箱/index.html) | 将幸运箱、知识跟踪器、反事实检验等整合为"四阶段完整复盘"流程，可读取独立工具沉淀的基准库数据 |
 
 ## 快速开始
 
@@ -35,18 +35,18 @@
 克隆本仓库后，双击任意 `.html` 文件即可在浏览器中打开使用，无需安装任何东西。
 
 ```bash
-git clone https://github.com/alexwongchintong-arch/how-to-decide-tools.git
+git clone https://github.com/alexwongchintong-arch/scientific-decide-and-review-toolkit.git
 ```
 
 **方式二：GitHub Pages（在线预览）**
 在仓库设置中开启 GitHub Pages（Source 选 `main` 分支根目录）后，所有工具即可在线直接使用，无需下载：
 
-- 落地页（工具导航）：[https://alexwongchintong-arch.github.io/how-to-decide-tools/](https://alexwongchintong-arch.github.io/how-to-decide-tools/)
+- 落地页（工具导航）：[https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/)
 - 每个工具都可以单独打开，例如：
-  - [辅助决策工具箱](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96%E5%B7%A5%E5%85%B7%E7%AE%B1/)
-  - [决策复盘工具箱](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E5%86%B3%E7%AD%96%E5%A4%8D%E7%9B%98%E5%B7%A5%E5%85%B7%E7%AE%B1/)
-  - [六步决策向导](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/six-step.html)
-  - [幸运箱 · 四象限复盘](https://alexwongchintong-arch.github.io/how-to-decide-tools/%E5%A4%8D%E7%9B%98/luck-box.html)
+  - [辅助决策工具箱](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96%E5%B7%A5%E5%85%B7%E7%AE%B1/)
+  - [决策复盘工具箱](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%B7%A5%E5%85%B7%E7%AE%B1/%E5%86%B3%E7%AD%96%E5%A4%8D%E7%9B%98%E5%B7%A5%E5%85%B7%E7%AE%B1/)
+  - [六步决策向导](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E8%BE%85%E5%8A%A9%E5%86%B3%E7%AD%96/six-step.html)
+  - [幸运箱 · 四象限复盘](https://alexwongchintong-arch.github.io/scientific-decide-and-review-toolkit/%E5%A4%8D%E7%9B%98/luck-box.html)
 
 > 本仓库所有工具均为免构建的单文件 HTML，文件路径即访问路径，Pages 开启后无需任何额外配置。
 
@@ -64,7 +64,7 @@ git clone https://github.com/alexwongchintong-arch/how-to-decide-tools.git
 ## 目录结构
 
 ```
-how-to-decide-tools/
+scientific-decide-and-review-toolkit/
 ├── index.html              # GitHub Pages 落地页（工具导航）
 ├── 辅助决策/               # 决策前 / 决策中：4 个独立工具
 │   ├── six-step.html
