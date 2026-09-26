@@ -1,0 +1,3159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>辅助决策工具箱 · 四合一组合向导 — 基于《对赌（实践版）》</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f4;
+    --surface: #ffffff;
+    --border: #e6e3dd;
+    --text: #1a1a1a;
+    --text-secondary: #55534f;
+    --text-muted: #999590;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fd;
+    --success: #1a7f3f;
+    --success-soft: #e9f5ec;
+    --warning: #b85415;
+    --warning-soft: #fdf1e7;
+    --danger: #c02a2a;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  .container { max-width: none; margin: 0 auto; padding: 24px 32px 80px; }
+  .narrow { max-width: 1080px; margin-left: auto; margin-right: auto; }
+
+  .hero, .report-list {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 30px 32px; box-shadow: var(--shadow); margin-bottom: 22px;
+  }
+  .hero .kicker { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 8px; }
+  .hero h1 { font-size: 24px; font-weight: 700; margin-bottom: 14px; }
+  .hero p { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; }
+  .report-list h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+
+  /* 首页默认流程示意卡 */
+  .flow-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 0 4px; }
+  .flow-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px;
+               background: #fcfbfa; border-top: 3px solid var(--accent); }
+  .flow-card h4 { font-size: 13px; margin-bottom: 4px; }
+  .flow-card .fc-src { font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+  .flow-card .fc-desc { font-size: 12px; color: var(--text-secondary); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; transition: background 0.12s;
+  }
+  .btn:hover { background: #1646b0; }
+  .btn.secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: #f0efec; }
+  .btn.danger-ghost { background: transparent; color: var(--danger); border: 1px solid transparent; font-weight: 500; padding: 6px 12px; }
+  .btn.danger-ghost:hover { background: #fbeaea; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .report-item { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                 padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .report-item:last-child { border-bottom: none; }
+  .report-item .ri-main { flex: 1; cursor: pointer; min-width: 0; }
+  .report-item .ri-title { font-size: 14px; font-weight: 600; }
+  .report-item .ri-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .ri-tag { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 8px; color: #fff; }
+  .empty-hint { font-size: 13px; color: var(--text-muted); }
+
+  /* 两层步骤条：上层模块阶段条，下层当前模块内步骤胶囊 */
+  .phase-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .phase-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12.5px; color: var(--text-muted); cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .phase-chip .pdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .phase-chip.active { font-weight: 700; color: var(--text); }
+  .phase-chip.done { color: var(--text-secondary); }
+
+  .stepper { display: flex; align-items: center; gap: 4px; margin-bottom: 22px; flex-wrap: wrap; }
+  .step-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12px; color: var(--text-muted); cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .step-chip .num { width: 17px; height: 17px; border-radius: 50%; background: #eceae6;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    font-size: 10.5px; font-weight: 700; color: var(--text-muted); }
+  .step-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .step-chip.active .num { background: var(--accent); color: #fff; }
+  .step-chip.done { color: var(--success); }
+  .step-chip.done .num { background: var(--success); color: #fff; }
+  .step-sep { color: #d4d1cb; font-size: 11px; }
+
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+               box-shadow: var(--shadow); overflow: hidden; }
+  .step-head { padding: 24px 32px 18px; border-bottom: 1px solid var(--border); }
+  .step-head .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+                    background: var(--accent-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 10px; }
+  .step-head h2 { font-size: 20px; font-weight: 700; }
+  .step-body { padding: 24px 32px 32px; }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .review-col { display: flex; flex-direction: column; gap: 16px; }
+  .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 box-shadow: var(--shadow); overflow: hidden; }
+  .review-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                 padding: 12px 18px; border-bottom: 1px solid var(--border); background: #faf9f7; }
+  .review-head h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .btn-edit { border: 1px solid var(--border); background: #fff; color: var(--accent); font-size: 12px;
+              font-weight: 600; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+  .btn-edit:hover { border-color: var(--accent); }
+  .btn-edit.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rv-nav { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rv-nav h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rv-arrow { border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-size: 14px; line-height: 1; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+  .rv-arrow:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .rv-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+  .review-body { padding: 16px 18px 20px; font-size: 13.5px; }
+  /* 右侧辅助信息框：斜角页签（回顾过往步骤 / 判断基准），活动页签与下方卡片连成一体 */
+  /* 编辑已保存报告时的提示条 */
+  .edit-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+              background: var(--accent-soft); border: 1px solid #c9d8f8; color: var(--accent);
+              border-radius: var(--radius-sm); padding: 8px 14px; font-size: 12.5px; margin-bottom: 12px; }
+  .aux-tabs { display: flex; align-items: flex-end; gap: 3px; padding-left: 12px; margin-bottom: -1px; position: relative; z-index: 1; }
+  .aux-tab { transform: skewX(-14deg); border: 1px solid var(--border); border-bottom: none; background: #f2f0ec;
+             color: var(--text-muted); font-family: inherit; font-size: 12.5px; font-weight: 600;
+             padding: 6px 15px; border-radius: 7px 7px 0 0; cursor: pointer; transition: background 0.12s, color 0.12s; }
+  .aux-tab > span { display: inline-block; transform: skewX(14deg); }
+  .aux-tab:hover { color: var(--accent); }
+  .aux-tab.on { background: var(--surface); color: var(--accent); }
+  /* 第二行（工具切换）更小一档，配色由各工具的主题色内联给出；上面还有一行时不与卡片相连 */
+  .aux-tab.sub { font-size: 11.5px; padding: 4px 12px; }
+  .aux-tab.sub.on { font-weight: 700; }
+  .review-body .field { margin-bottom: 16px; }
+  .review-body textarea { min-height: 54px; font-size: 13px; }
+  .locked { opacity: 0.82; }
+  .locked input, .locked textarea { background: #faf9f7; border-color: transparent; color: var(--text-secondary);
+                                    box-shadow: none !important; }
+  .locked .yn-btn, .locked .as-btn, .locked .radio-option, .locked .list-add, .locked .row-remove,
+  .locked .score-btn, .locked .chip, .locked .sq-check, .locked .mp-card { pointer-events: none; }
+
+  .field { margin-bottom: 26px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { font-size: 13.5px; font-weight: 600; margin-bottom: 7px; display: block; }
+  .field-label .opt-name { color: var(--accent); }
+  .field-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .meta-note { background: #faf9f7; border: 1px dashed var(--border); border-radius: var(--radius-sm);
+               padding: 8px 12px; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--text);
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,0.12); }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
+
+  /* s0 起始步：模块勾选卡 */
+  .mp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .mp-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px;
+             background: #fff; cursor: pointer; transition: all 0.12s; }
+  .mp-card:hover { border-color: var(--accent); }
+  .mp-card.on { border-color: var(--accent); background: var(--accent-soft); }
+  .mp-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .mp-check { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 6px; background: #fff;
+              color: transparent; font-size: 13px; line-height: 1; flex-shrink: 0;
+              display: inline-flex; align-items: center; justify-content: center; transition: all 0.12s; }
+  .mp-card.on .mp-check { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .mp-name { font-size: 14.5px; font-weight: 700; flex: 1; }
+  .mp-ord { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff;
+            font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .mp-src { font-size: 11.5px; color: var(--accent); margin-bottom: 4px; }
+  .mp-desc { font-size: 12.5px; color: var(--text-secondary); }
+  .mp-card.mp-default { border-style: solid; background: #fbfcff; }
+  .mp-card.mp-default.on { border-style: solid; }
+  /* s0 两个互斥选择区：选中一边另一边整体变灰（仍可点击切换） */
+  .mp-zone { transition: opacity 0.15s; }
+  .mp-zone.dimmed { opacity: 0.42; }
+  .mp-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; color: var(--text-muted); font-size: 12.5px; }
+  .mp-divider::before, .mp-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  .mp-rec { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; margin-left: 8px; }
+
+  /* s0 已选模块词条列表：⠿ 手柄 + 序号 + 模块名，HTML5 拖拽排序 */
+  .sel-list { margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; overflow: hidden; }
+  .sel-row { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .sel-row:last-child { border-bottom: none; }
+  .sel-row.dragging { opacity: 0.4; }
+  .sel-row.drag-over { border-top: 2px solid var(--accent); }
+  .sel-drag { cursor: grab; color: var(--text-muted); font-size: 14px; user-select: none; flex-shrink: 0; padding: 0 2px; }
+  .sel-drag:hover { color: var(--accent); }
+  .sel-drag:active { cursor: grabbing; }
+  .sel-drag.off { cursor: default; opacity: 0.4; }
+  .sel-ord { width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+             font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sel-name { font-weight: 600; }
+
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-group.inline { flex-direction: row; }
+  .radio-group.inline .radio-option { flex: 1; }
+  .radio-option {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.12s; font-size: 13.5px;
+  }
+  .radio-option:hover { border-color: var(--accent); }
+  .radio-option.checked { border-color: var(--accent); background: var(--accent-soft); }
+  .radio-option input { margin-top: 3px; accent-color: var(--accent); }
+  .radio-option .opt-desc { color: var(--text-muted); font-size: 12px; display: block; }
+
+  .score-row { display: flex; gap: 8px; align-items: center; }
+  .score-btn {
+    width: 42px; height: 42px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: #fff; font-size: 15px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+    transition: all 0.12s;
+  }
+  .score-btn:hover { border-color: var(--accent); }
+  .score-btn.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .score-endlabel { font-size: 11.5px; color: var(--text-muted); width: 74px; line-height: 1.4; }
+  .score-endlabel.right { text-align: right; color: var(--accent); }
+
+  .list-rows { display: flex; flex-direction: column; gap: 10px; }
+  .list-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fcfbfa;
+              display: flex; gap: 10px; align-items: flex-start; }
+  .list-row .idx { font-size: 12px; color: var(--text-muted); font-weight: 700; padding-top: 9px; flex-shrink: 0; }
+  .list-row textarea { flex: 1; resize: none; overflow: hidden; min-height: 40px; padding: 7px 10px; font-size: 13.5px; }
+  .row-cmp { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 4px; }
+  .row-cmp .chip { padding: 4px 12px; font-size: 12px; border: 1px solid var(--border); border-radius: 999px;
+                   cursor: pointer; background: #fff; color: var(--text-secondary); user-select: none; }
+  .row-cmp .chip:hover { border-color: var(--accent); }
+  .row-cmp .chip.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .row-remove { flex-shrink: 0; border: none; background: transparent; color: var(--text-muted);
+                cursor: pointer; font-size: 16px; padding: 4px 6px; border-radius: 4px; line-height: 1; }
+  .row-remove:hover { color: var(--danger); background: #fbeaea; }
+  .list-add { border: 1px dashed var(--border); background: transparent; color: var(--accent);
+              padding: 9px; width: 100%; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; margin-top: 10px; }
+  .list-add:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .list-empty-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+
+  .as-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; background: #fff; }
+  .as-item { font-size: 13.5px; margin-bottom: 8px; }
+  .as-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .as-btn { padding: 4px 16px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 999px;
+            cursor: pointer; background: #fff; color: var(--text-secondary); user-select: none; }
+  .as-btn:hover { border-color: var(--accent); }
+  .as-btn.picked-1 { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .as-btn.picked-2 { background: #7a86a8; border-color: #7a86a8; color: #fff; }
+  .as-btn.picked-3 { background: #eceae6; border-color: #d4d1cb; color: var(--text-secondary); }
+
+  /* ---------- decision-pacing 特有：唯一选择测验 ---------- */
+  .cl-list { border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; overflow: hidden; }
+  .cl-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .cl-row:last-child { border-bottom: none; }
+  .cl-item { flex: 1; min-width: 0; font-size: 13.5px; }
+  .sq-check { width: 26px; height: 26px; border: 2px solid var(--border); border-radius: 6px; background: #fff;
+              color: transparent; font-size: 15px; line-height: 1; cursor: pointer; flex-shrink: 0;
+              display: inline-flex; align-items: center; justify-content: center; transition: all 0.12s; }
+  .sq-check:hover:not(:disabled) { border-color: var(--success); }
+  .radio-option .sq-check { margin-top: 1px; font-size: 14px; }
+  .sq-check.checked { border-color: var(--success); background: var(--success-soft); color: var(--success); }
+  .locked .sq-check { pointer-events: none; }
+
+  /* ---------- six-step 特有：决策树 / 页签 / 组内比较 / 半栏 ---------- */
+  .dt-branches { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fff; min-width: 0; }
+  .dt-branch-head { font-size: 12.5px; text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px; font-weight: 700; }
+  .dt-branch { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .dt-branch:last-of-type { margin-bottom: 4px; }
+  .dt-arrow { color: var(--text-muted); font-size: 16px; flex-shrink: 0; padding-top: 4px; }
+  .dt-branch-body { flex: 1; min-width: 0; }
+  .dt-branch-body textarea { width: 100%; border: none; border-bottom: 1px dashed var(--border); border-radius: 0; background: transparent; font-size: 13px; padding: 4px 2px; resize: none; overflow: hidden; min-height: 0; }
+  .dt-branch-body textarea:focus { outline: none; border-bottom-color: var(--accent); box-shadow: none; }
+  .dt-sorthint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .dt-drag { cursor: grab; color: var(--text-muted); font-size: 14px; padding: 3px 2px 0; user-select: none; flex-shrink: 0; }
+  .dt-drag:hover { color: var(--accent); }
+  .dt-drag:active { cursor: grabbing; }
+  .dt-branch.dragging { opacity: 0.4; }
+  .dt-branch.drag-over { border-top: 2px solid var(--accent); padding-top: 4px; }
+  .locked .dt-branch { cursor: default; }
+
+  .half-row { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 26px; }
+  .half-row .field.half { flex: 1; min-width: 0; margin-bottom: 0; }
+
+  .otabs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .otab { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: all 0.12s; }
+  .otab:hover { border-color: var(--accent); color: var(--accent); }
+  .otab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+
+  .sum-list { border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; overflow: hidden; }
+  .sum-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+  .sum-row:last-child { border-bottom: none; }
+  .sum-rank { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+              font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sum-text { flex: 1; min-width: 0; font-size: 13.5px; }
+  .sum-prob { font-size: 12px; color: var(--accent); font-weight: 600; flex-shrink: 0; }
+  .sum-prob.none { color: var(--text-muted); font-weight: 400; }
+
+  /* ---------- perspective 特有：基准条 / 基准数三联行 / 内外视角双栏 ---------- */
+  .tri-sub { display: flex; gap: 8px; }
+  .tri-sub input { flex: 1; min-width: 0; }
+  .vt-title { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .vt-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .vt-col { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; background: #fff; min-width: 0; }
+  .vt-col h4 { font-size: 13.5px; text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 6px; }
+  .vt-col .vt-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; text-align: center; }
+  .vt-inside h4 { color: var(--warning); }
+  .vt-outside h4 { color: var(--accent); }
+  /* 多组观点追踪：组卡片（简约款，与复盘工具箱一致）+ 组页签条 */
+  .vt-group { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; background: #fcfbfa; margin-bottom: 14px; }
+  .vt-group-head { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; }
+  .vt-group-name { flex: 1; min-width: 0; font-weight: 600; }
+  .vt-group .vt-grid { gap: 10px; }
+  .vt-group .bs-cap { font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+  .pv-grp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .rv-grp-head { font-size: 13px; font-weight: 700; color: var(--text); border-left: 3px solid var(--accent);
+    padding-left: 8px; margin: 14px 0 8px; }
+  .rv-grp-head:first-child { margin-top: 0; }
+
+  /* ---------- pre-mortem 特有：决策表 / 策略表 / 多轮回顾 ---------- */
+  .dt-title { text-align: center; font-size: 16px; font-weight: 700; letter-spacing: 0.08em; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .dt-group { display: grid; grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 22px; align-items: start; }
+  .dt-group:last-child { margin-bottom: 0; }
+  .dt-glabel { font-size: 13px; font-weight: 700; color: var(--text-secondary); text-align: center; padding-top: 36px; line-height: 1.6; }
+  .dt-table { border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; overflow: hidden; }
+  .dt-thead { display: flex; justify-content: center; gap: 24px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); padding: 7px 10px; border-bottom: 1px solid var(--border); background: #faf9f7; }
+  .dt-row { display: flex; border-bottom: 1px solid var(--border); min-height: 46px; }
+  .dt-row:last-child { border-bottom: none; }
+  .dt-reason { flex: 1; display: flex; gap: 6px; padding: 9px 10px; font-size: 13px; line-height: 1.55; min-width: 0; word-break: break-word; }
+  .dt-reason .idx { font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+  .dt-pct { width: 66px; flex-shrink: 0; border-left: 1px solid var(--border); display: flex; align-items: stretch; }
+  .dt-pct input { width: 100%; border: none; border-radius: 0; text-align: center; font-size: 13px; padding: 6px 4px; background: transparent; }
+  .dt-pct input:focus { box-shadow: none; background: var(--accent-soft); }
+  .locked .dt-pct input { background: transparent; color: var(--text-secondary); }
+  .dt-empty { padding: 14px; font-size: 12.5px; color: var(--text-muted); text-align: center; }
+
+  .loop-recap { border: 1px dashed var(--border); border-radius: var(--radius-sm); background: #faf9f7; padding: 16px 18px; margin: 8px 0 18px; }
+  .lr-step { margin-bottom: 12px; }
+  .lr-step:last-child { margin-bottom: 0; }
+  .lr-step > b { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 700; }
+
+  .st-table { border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; overflow: hidden; }
+  .st-thead { display: flex; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); border-bottom: 1px solid var(--border); background: #faf9f7; }
+  .st-thead > div { padding: 7px 12px; }
+  .st-thead .st-h-input { border-left: 1px solid var(--border); }
+  .st-row { display: flex; border-bottom: 1px solid var(--border); }
+  .st-row:last-child { border-bottom: none; }
+  .st-reason { flex: 0 0 50%; padding: 10px 12px; font-size: 13px; display: flex; gap: 8px; align-items: flex-start; min-width: 0; line-height: 1.55; }
+  .st-reason .idx { font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+  .st-pctbadge { flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: var(--warning); background: var(--warning-soft); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  .st-pctbadge.none { color: var(--text-muted); background: #efedea; }
+  .st-input { flex: 0 0 50%; border-left: 1px solid var(--border); display: flex; min-width: 0; }
+  .st-input textarea { width: 100%; border: none; border-radius: 0; min-height: 46px; resize: none; overflow: hidden; font-size: 13px; padding: 9px 12px; background: transparent; }
+  .st-input textarea:focus { box-shadow: none; background: var(--accent-soft); }
+  .locked .st-input textarea { background: transparent; color: var(--text-secondary); }
+  .st-empty { padding: 12px; font-size: 12.5px; color: var(--text-muted); text-align: center; }
+
+  .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 12px; }
+  .nav-note { font-size: 12px; color: var(--text-muted); }
+
+  /* ---------- 组合报告 ---------- */
+  .report-head { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 padding: 28px 32px; box-shadow: var(--shadow); margin-bottom: 18px; max-width: 1080px; }
+  .report-head h1 { font-size: 21px; margin-bottom: 6px; }
+  .report-head .meta { font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
+  .vb-row { display: flex; flex-direction: column; gap: 8px; }
+  .vb-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .vb-mod { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+  .verdict-banner { display: inline-block; padding: 8px 18px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; }
+  .vb-success { background: var(--success-soft); color: var(--success); }
+  .vb-warning { background: var(--warning-soft); color: var(--warning); }
+  .vb-accent { background: var(--accent-soft); color: var(--accent); }
+  .vb-neutral { background: #efedea; color: var(--text-secondary); }
+  .lesson-banner { margin-top: 14px; background: #fffbeb; border: 1px solid #f2e3b3; border-radius: var(--radius-sm);
+                   padding: 12px 16px; font-size: 14px; }
+  .lesson-banner .lb-label { font-size: 11px; font-weight: 700; color: #a07d1c; display: block; margin-bottom: 3px; }
+  .report-phase { max-width: 1080px; margin: 24px 0 12px; font-size: 15px; font-weight: 700;
+                  display: flex; align-items: center; gap: 8px; }
+  .report-phase .pdot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .report-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                    padding: 22px 28px; box-shadow: var(--shadow); margin-bottom: 16px; max-width: 1080px; }
+  .report-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .report-section h3 .sn { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+                           font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .rv-item { margin-bottom: 12px; }
+  .rv-item:last-child { margin-bottom: 0; }
+  .rv-label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+  .rv-value { font-size: 13.5px; white-space: pre-wrap; }
+  .rv-value.empty { color: var(--text-muted); font-style: italic; }
+  .rv-list { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .rv-list li { margin-bottom: 3px; }
+  .rv-as { font-size: 13.5px; margin-bottom: 6px; }
+  .rv-as b { font-weight: 600; }
+  .actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  @media (max-width: 920px) {
+    .split { grid-template-columns: 1fr; }
+    .dt-group { grid-template-columns: 1fr; }
+    .dt-glabel { padding-top: 0; text-align: left; }
+    .half-row { flex-direction: column; gap: 0; }
+    .half-row .field.half { margin-bottom: 26px; }
+    .flow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .container { padding: 20px 14px 60px; }
+    .hero, .report-list, .step-head, .step-body, .report-head, .report-section { padding-left: 18px; padding-right: 18px; }
+    .score-btn { width: 36px; height: 36px; }
+    .score-endlabel { width: 56px; }
+    .vt-grid { grid-template-columns: 1fr; }
+    .tri-sub { flex-direction: column; gap: 6px; }
+    .mp-grid { grid-template-columns: 1fr; }
+    .flow-grid { grid-template-columns: 1fr; }
+  }
+  @media print {
+    body { background: #fff; }
+    .actions-row, .no-print { display: none !important; }
+    .report-head, .report-section { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+ * 模块配置（四个源工具的 TOOL 配置近乎原样移植，仅读写落点改为模块作用域）
+ * ===================================================================== */
+
+/* ---------- 模块一：决策速度（移植自 decision-pacing，第七章，原 ls 前缀 dp2） ---------- */
+const MOD_DP = {
+  id: "dp",
+  name: "决策速度",
+  chapter: "第七章",
+  src: "《对赌（实践版）》第七章 · 时间与准确性的权衡",
+  desc: "沿“快速决策指南”分支树逐题判断：这个决策该快还是该慢。",
+  color: "#1a56db",
+  reportName: "快速决策指南报告",
+  titleKey: "title",
+  titleStep: "s1",
+  titleNote: "请先陈述这个决策",
+  conclusionKey: "conclusion",
+  conclusionLabel: "一句话结论",
+  skipEmptySection: true,
+  steps: [
+    { id: "s1", title: "锚定决策", tag: "明确对象", need: "title", needHint: "请先陈述这个决策", desc: "陈述要判断节奏的决策，并描述当前处境。" },
+    { id: "q1", title: "这个决策是否通过了幸福感测验？", tag: "图1 · 低影响力", need: "hap_pass", needHint: "请先回答：是否通过了幸福感测验", desc: "" },
+    { id: "q2", title: "它属于重复性决策吗？", tag: "图1 · 重复性选择", need: "repeat", needHint: "请先回答这个问题", desc: "" },
+    { id: "q3", title: "它属于“但试无妨”的情况吗？", tag: "图1 · 下行风险", need: "freeway", needHint: "请先回答这个问题", desc: "" },
+    { id: "q4", title: "这个决策是“披着狼皮的羊”吗？", tag: "图1 · 相近选项", need: "sheep", needHint: "请先回答这个问题", desc: "" },
+    { id: "q6", title: "你能以合理的代价放弃这个决策吗？", tag: "图1 · 主动放弃", need: "exit", needHint: "请先回答这个问题", desc: "" },
+    { id: "q5", title: "你可以同时做出多个选择吗？", tag: "图1 · 同时多选", need: "parallel", needHint: "请先回答这个问题", desc: "" },
+    { id: "q7", title: "你可以进行渐进式决策吗？", tag: "图1 · 渐进式", need: "gradual", needHint: "请先回答这个问题", desc: "" },
+    { id: "t_fast", title: "终点：快速决策", tag: "图1 · 结论", desc: "" },
+    { id: "t_soon", title: "终点：尽快作出决定", tag: "图1 · 结论", desc: "" },
+    { id: "t_gradual", title: "终点：先做一些影响小的决策", tag: "图1 · 结论", desc: "" },
+    { id: "t_slow", title: "终点：放慢速度！", tag: "图1 · 结论", desc: "" },
+    { id: "q8", title: "有没有什么信息能让你改变决定？", tag: "图2 · 决策最后一步", need: "info", needHint: "请先回答这个问题", desc: "" },
+    { id: "q9", title: "我负担得起吗？", tag: "图2 · 信息的代价", need: "afford", needHint: "请先回答这个问题", desc: "" },
+    { id: "s_end", title: "一句话结论", tag: "收尾", desc: "" }
+  ],
+  // 快速决策指南（图1）分支树 + 决策最后一步（图2）。
+  // 路径只延伸到第一个未回答的分支问题为止；不在路径上的答案保留在 values 中。
+  pathIds: function (v) {
+    const answered = k => v[k] === "yes" || v[k] === "no";
+    const p = ["s1"];
+    if (!String(v.title || "").trim()) return p;
+    p.push("q1");
+    if (!answered("hap_pass")) return p;
+    if (v.hap_pass === "yes") {
+      p.push("q2");
+      if (!answered("repeat")) return p;
+      // 通过幸福感测验：重复性选择 → 快速决策；非重复性 → 直接闭环，尽快作出决定
+      p.push(v.repeat === "yes" ? "t_fast" : "t_soon");
+    } else {
+      p.push("q3");
+      if (!answered("freeway")) return p;
+      if (v.freeway === "yes") {
+        p.push("t_fast");
+      } else {
+        p.push("q4");
+        if (!answered("sheep")) return p;
+        if (v.sheep === "yes") {
+          p.push("q5");
+          if (!answered("parallel")) return p;
+          p.push(v.parallel === "yes" ? "t_fast" : "t_soon");
+        } else {
+          p.push("q6");
+          if (!answered("exit")) return p;
+          if (v.exit === "yes") {
+            p.push("q5");
+            if (!answered("parallel")) return p;
+            p.push(v.parallel === "yes" ? "t_fast" : "t_soon");
+          } else {
+            p.push("q7");
+            if (!answered("gradual")) return p;
+            p.push(v.gradual === "yes" ? "t_gradual" : "t_slow");
+          }
+        }
+      }
+    }
+    // 决策最后一步（图2）：对接所有快速/尽快决策的终点，完成后才进入一句话总结；放慢类终点（渐进式/放慢速度）直接收尾
+    const term = p[p.length - 1];
+    if (term === "t_fast" || term === "t_soon") {
+      p.push("q8");
+      if (!answered("info")) return p;
+      if (v.info === "yes") {
+        p.push("q9");
+        if (!answered("afford")) return p;
+      }
+    }
+    p.push("s_end");
+    return p;
+  },
+  stepMeta: {
+    s1: "先锚定决策本身——后面的检验都围绕它展开。处境描述（背景、约束、时间点）会在你做判断时提供参照。候选选项不在这里填写：走到“披着狼皮的羊”环节时再列出并逐条测验。",
+    q1: "幸福感测验：问问自己的决策结果（无论好坏）是否有可能在一年内显著影响到你的幸福感。一个月呢？一周呢？你回答“不，对我的幸福感没有太大影响”的时间段越短，就越可以为了节省时间而牺牲准确性。",
+    q2: "重复性选择是指相同类型的决策反复出现，你会得到重复选择的机会，还可以尝试过去放弃的选择。重复做决定能淡化后悔情绪——再做一次决定，能够减少低影响力决策不良结果的微小代价。",
+    q3: "“但试无妨”的关键特征是下行风险有限：上行潜力和下行风险存在不对称性，潜在损失可以忽略不计。问自己两个问题：①最糟的结果是什么？②假如结果不尽如人意，我会面临比决策前更差的情况吗？提醒：免费甜甜圈不属于“但试无妨”——要考虑多次做出相同决策的累积影响，而不是只关注一次性的潜在危害。",
+    q4: "难以决策＝很容易选择：拖慢决策的东西，即质量非常接近的多个选项，实际上是可以加快速度的信号——既然选项的上行潜力和下行风险相似，无论怎么选都不可能出错。用“唯一选择测验”打破僵局：对每个选项问自己“如果这是唯一的选择，我会感觉满意吗？”假如有多个选项的答案是肯定的，你就可以随机选择。",
+    q6: "任何选择都有机会成本。问问自己：“现在做出的这个选择，将来若想放弃需要付出何种代价？”将来改弦更张的成本越低，就越可以加快决策速度——退出成本低的决策就是“双向门”决策。别凭直觉认为决策不可更改：美国37%的大学生会转学。多数时候，放弃造成的损失比你想象的少。",
+    q5: "同时做出多个选择能降低机会成本（同时获得这些选择的潜在收益），也能降低潜在风险——每件事各有10%的失败概率时，总体失败的概率几乎为零。但“可以”并不等于“应该”：多选要消耗更多资源，也会影响完成效果。",
+    q7: "渐进式决策：在做出影响大、难以放弃的“单向门”决策之前，先设法做出一些影响小、易于放弃的决定来收集信息。想在一个社区买房，就先在那里租房体验一下；确立稳定关系之前，先多约会几次。",
+    q8: "好的决策过程离不开最后一个问题：“有没有什么信息能让我改变主意？”我们的决定几乎都是在不完全信息的基础上做出的。如果答案是“没有”，那就赶紧做决定——你已经大功告成；如果有，再问自己能否以负担得起的代价获得这些信息。",
+    q9: "信息即便可以获得，也可能因为时间、金钱、社会资本等原因太过昂贵——等你在波士顿住完一整个冬天弄清自己能否适应，那份工作早就没了。若信息能获得且代价负担得起，那就去找；否则，趁早做决定。",
+    s_end: "摆脱“分析瘫痪”对照单：通过幸福感测验→尽快作出决定，若还属于重复性选择→快速决策、更快；但试无妨→迅速抓住机会、在执行上多花时间；多个选项通过唯一选择测验→快速决策甚至随机选择；能以合理代价放弃→快速决策，不能则渐进式决策；能同时多选→快速决策，不能也尽快定；没有能改变主意的信息→趁早做决定。"
+  },
+  verdict: function (v) {
+    const p = MOD_DP.pathIds(v);
+    let main = "", cls = "vb-neutral";
+    if (p.indexOf("t_fast") >= 0) {
+      let why = "";
+      if (p.indexOf("q2") >= 0 && v.repeat === "yes") why = "低影响力＋重复性选择，可以加快速度";
+      else if (p.indexOf("q3") >= 0 && v.freeway === "yes") why = "但试无妨：下行风险有限";
+      else if (p.indexOf("q5") >= 0) {
+        why = v.sheep === "yes" ? "披着狼皮的羊：选项相近，怎么选都不会出错" : "退出成本低的“双向门”决策";
+        if (v.parallel === "yes") why += "，且可同时多选，可以加快速度";
+      }
+      main = "快速决策" + (why ? "（" + why + "）" : "");
+      cls = "vb-success";
+    } else if (p.indexOf("t_soon") >= 0) {
+      let why = "";
+      if (v.hap_pass === "yes") why = "通过了幸福感测验的低影响力决策，纵然不常重复";
+      else if (v.sheep === "yes") why = "选项相近，怎么选都不会出错，但无法同时多选";
+      else why = "退出成本低的“双向门”决策，但无法同时多选";
+      main = "尽快作出决定（" + why + "）";
+      cls = "vb-success";
+    } else if (p.indexOf("t_gradual") >= 0) {
+      main = "先做一些影响小的决策（渐进式收集信息）"; cls = "vb-accent";
+    } else if (p.indexOf("t_slow") >= 0) {
+      main = "放慢速度！这个决策值得动用完整的决策过程"; cls = "vb-warning";
+    } else {
+      return { t: "未完成评估", cls: "vb-neutral" };
+    }
+    let tail = "";
+    if (p.indexOf("q8") >= 0) {
+      if (v.info === "yes" && v.afford === "yes") tail = "决策最后一步：获取信息后再做决定";
+      else if (v.info === "yes" && v.afford === "no") tail = "决策最后一步：信息代价负担不起，做决定";
+      else if (v.info === "no") tail = "决策最后一步：没有能改变主意的信息，做决定";
+    }
+    return { t: tail ? main + " ｜ " + tail : main, cls: cls };
+  },
+  fields: function (stepId, vals) {
+    const v = vals || {};
+    if (stepId === "s1") return [
+      { key: "title", label: "这个决策具体是什么？", type: "text", placeholder: "用一句话陈述这个决策，例：要不要搬去另一个城市" },
+      { key: "situation", label: "具体描述你当前的处境（背景、约束、时间点——用于辅助后续判断；与六步决策的“背景描述”实时同步，改哪边都会更新）", type: "textarea", placeholder: "例：租约三个月后到期，新公司 offer 本周截止，家人希望离学校近一些……" }
+    ];
+    if (stepId === "q1") return [
+      { key: "hap_week", label: "一周后，这个决策的结果对你的幸福感有多大影响？（0＝没有影响，5＝影响很大）", type: "score" },
+      { key: "hap_month", label: "一个月后呢？", type: "score" },
+      { key: "hap_year", label: "一年后呢？", type: "score" },
+      { key: "hap_pass", label: "这个决策是否通过了幸福感测验？", type: "radio", inline: true, options: [["yes", "低影响力决策", "无论怎么选，长远看都不会有太大影响——可以加快"], ["no", "高影响力决策", "结果会显著影响幸福感——别为速度牺牲准确性"]] }
+    ];
+    if (stepId === "q2") return [
+      { key: "repeat", label: "它属于重复性决策吗？", type: "radio", options: [["yes", "是", "同类决策还会反复出现，还能回头尝试这次放弃的选项——可以加快速度"], ["no", "否", "一生一次或极少重复——尽快作出决定，不再纠结"]] }
+    ];
+    if (stepId === "q3") return [
+      { key: "worst", label: "最糟的结果是什么？", type: "textarea", placeholder: "具体写下你能想到的最坏情况。" },
+      { key: "worse_than", label: "假如结果不尽如人意，你会面临比决策前更差的情况吗？", type: "radio", options: [["worse", "会更差", "存在不可忽视的损失——下行风险并不有限"], ["same", "差不多", "基本回到原点"], ["better", "不会更差", "最糟也就维持现状——不对称性对你有利"]] },
+      { key: "freeway", label: "它属于“但试无妨”的情况吗？", type: "radio", options: [["yes", "是", "潜在损失可忽略不计——迅速抓住机会，把时间花在执行上"], ["no", "否", "下行风险并不有限，或者反复如此代价会累积"]] }
+    ];
+    if (stepId === "q4") return [
+      { key: "options_extra", label: "候选选项（在本环节列出，供下方“唯一选择测验”逐条勾选）", type: "list", itemPlaceholder: "例：搬去城市 A", emptyHint: "点击下方按钮按需添加" },
+      { key: "unique", label: "唯一选择测验：对每个选项问自己——如果这是唯一的选择，我会感觉满意吗？满意就在右侧打勾", type: "checklist", sources: ["options_extra"],
+        emptyHint: "还没有候选选项——在上方补充后，这里会自动生成逐条勾选；若跳过，请直接依据“选项是否相近”回答下面的问题。" },
+      { key: "sheep", label: "这个决策是“披着狼皮的羊”吗？", type: "radio", options: [["yes", "是", "有多个选项通过了唯一选择测验——无论怎么选都不会出错，甚至可以随机选择"], ["no", "否", "选项质量差距明显，选择真的重要"]] }
+    ];
+    if (stepId === "q6") return [
+      { key: "exit_note", label: "如果放弃，具体的代价是什么？", type: "textarea", placeholder: "金钱、时间、名誉、社交资本……" },
+      { key: "exit", label: "你能以合理的代价放弃这个决策吗？", type: "radio", options: [["yes", "能", "退出成本低，这是“双向门”决策——将来改弦更张的代价可接受"], ["no", "不能", "退出成本高，这是“单向门”决策"]] }
+    ];
+    if (stepId === "q5") return [
+      { key: "parallel", label: "你可以同时做出多个选择吗？", type: "radio", options: [["yes", "可以", "能同时获得多个选项的潜在收益，还降低了整体风险——可以加快速度"], ["no", "不行", "资源或性质上只能选一个——那就尽快作出决定"]] },
+      { key: "parallel_note", label: "打算怎么同时尝试？", type: "textarea", showIf: function (vv) { return vv.parallel === "yes"; }, placeholder: "例：两个营销方案各投小额预算同时测试。" }
+    ];
+    if (stepId === "q7") return [
+      { key: "gradual", label: "你可以进行渐进式决策吗？", type: "radio", options: [["yes", "可以", "能先做影响小、易于放弃的决定来收集信息（如先租后买）"], ["no", "不行", "没有可行的低代价前置试验"]] },
+      { key: "gradual_note", label: "可以先做哪些影响小、易于放弃的决定？", type: "textarea", showIf: function (vv) { return vv.gradual === "yes"; }, placeholder: "例：先在目标社区租三个月房，再决定是否买房。" }
+    ];
+    if (stepId === "t_fast") {
+      let why = "";
+      if (v.hap_pass === "yes" && v.repeat === "yes") why = "它通过了幸福感测验，又属于重复性选择——是的话可以加快速度：再做一次决定能淡化后悔，还能借低风险的尝试了解自己的偏好。";
+      else if (v.freeway === "yes") why = "它属于“但试无妨”：上行潜力和下行风险不对称，潜在损失可忽略不计——迅速抓住机会，把时间花在执行上。";
+      else if (v.sheep === "yes") why = "它是“披着狼皮的羊”：多个选项通过了唯一选择测验，无论怎么选都不会出错——甚至可以随机选择。";
+      else if (v.exit === "yes") why = "它可以以合理的代价放弃——“双向门”决策的退出成本低，选错了也容易改弦更张。";
+      else why = "它通过了幸福感测验，属于低影响力决策——做得不那么“恰到好处”也没什么损失。";
+      if (v.parallel === "yes" && (v.sheep === "yes" || v.exit === "yes")) why += "你还可以同时做出多个选择——同时多选能降低机会成本和整体风险，是的话可以加快速度。";
+      return [{ key: "t_fast_note", label: "图1 结论 · 快速决策", type: "note",
+        text: "快速决策指南的结论：这个决策可以快速决定。" + why + "节省下来的时间，可以用于更有影响力的决策，也可以用于低风险的探索世界的尝试。" }];
+    }
+    if (stepId === "t_soon") {
+      let why = "";
+      if (v.hap_pass === "yes") why = "它通过了幸福感测验，属于低影响力决策——纵然不是反复出现的重复性选择，也不值得为它多花时间：做得不那么“恰到好处”也没什么损失。";
+      else if (v.sheep === "yes") why = "它是“披着狼皮的羊”——选项质量相近，怎么选都不会出错；虽然不能同时多选，但继续反复比较也换不来更好的答案。";
+      else why = "它可以以合理的代价放弃——“双向门”决策退出成本低，选错了也容易改弦更张；虽然不能同时多选，也不必反复权衡。";
+      return [{ key: "t_soon_note", label: "图1 结论 · 尽快作出决定", type: "note",
+        text: "快速决策指南的结论：这个决策可以尽快作出决定。" + why + "别再犹豫，趁早定下来——省下的时间，留给更有影响力的决策。" }];
+    }
+    if (stepId === "t_gradual") return [
+      { key: "t_gradual_note", label: "图1 结论 · 先做一些影响小的决策", type: "note",
+        text: "这个决策影响大、退出成本高，但可以先做渐进式决策：在做出“单向门”决策之前，先做一些影响小、易于放弃的“双向门”决定来收集信息——比如先租后买、先体验再投入。用小决策摸清自己的偏好，再做最终的大决策。" }
+    ];
+    if (stepId === "t_slow") return [
+      { key: "t_slow_note", label: "图1 结论 · 放慢速度！", type: "note",
+        text: "这个决策影响大、退路有限，又无法渐进或并行——为速度牺牲准确性的代价太高。放慢速度，动用完整的决策工具箱（六步决策过程），多花时间是对的。" }
+    ];
+    if (stepId === "q8") return [
+      { key: "info", label: "有没有什么信息能让你改变决定？", type: "radio", options: [["yes", "有", "存在某些信息，知道了可能让我改变决定"], ["no", "没有", "再没有什么信息能改变我的决定——那就赶紧做决定，你已经大功告成"]] },
+      { key: "info_what", label: "是什么信息？（可选）", type: "textarea", showIf: function (vv) { return vv.info === "yes"; }, placeholder: "例：目标岗位的真实团队氛围。" }
+    ];
+    if (stepId === "q9") return [
+      { key: "afford", label: "获取该信息的代价，我负担得起吗？", type: "radio", options: [["yes", "负担得起", "时间、金钱、社会资本等代价可接受——去获取信息，再做决定"], ["no", "负担不起", "等弄清答案，机会早已溜走——趁早做决定"]] },
+      { key: "info_note", label: "要去获取什么信息？打算怎么获取？", type: "textarea", showIf: function (vv) { return vv.afford === "yes"; }, placeholder: "例：花一天咨询两位过来人；约候选人再深聊一次。" }
+    ];
+    if (stepId === "s_end") return [
+      { key: "conclusion", label: "一句话结论", type: "textarea", placeholder: "例：低影响力＋可逆——今晚就定，不再纠结。" }
+    ];
+    return [];
+  }
+};
+
+/* ---------- 模块二：六步决策（移植自 six-step，第四章，原 ls 前缀 ss2） ---------- */
+/* 决策清单 = 第 1 个“本次决策” + 其余候选：
+   第 1 个决策由决策速度第 1 步的决策陈述同步而来（存在 title，见 syncDecisionText），不进候选数组；
+   decisions 只放用户在本步追加、或从决策速度“披着狼皮的羊”环节带入的候选决策。 */
+function decisionsOf(vals) {
+  const head = String(vals.title || "").trim();
+  const rest = (Array.isArray(vals.decisions) ? vals.decisions : [])
+    .filter(d => (d && (d.t || "").trim()) && String(d.t).trim() !== head);
+  return head ? [{ t: head }].concat(rest) : rest;
+}
+/* 最终选择支持多选：值存成 { d0: "yes", d2: "yes" }；旧的单选值（"d1"）照旧能读 */
+function finalPicks(v) {
+  const raw = v ? v.final_pick : null;
+  const keys = (raw && typeof raw === "object")
+    ? Object.keys(raw).filter(k => raw[k] === "yes")
+    : (typeof raw === "string" && raw ? [raw] : []);
+  return keys.map(k => Number((/^d(\d+)$/.exec(k) || [])[1])).filter(i => i >= 0).sort((a, b) => a - b);
+}
+/* 多选字段里已勾选的选项文字（兼容旧的单选字符串值） */
+function pickedOptionTexts(f, val) {
+  const on = (val && typeof val === "object") ? val : (typeof val === "string" && val ? { [val]: "yes" } : {});
+  return (f.options || []).filter(o => on[o[0]] === "yes").map(o => o[1]);
+}
+function optListD(vals, di) { return (Array.isArray(vals["options_d" + di]) ? vals["options_d" + di] : []).filter(o => (o && (o.t || "").trim())); }
+function trunc(s, n) {
+  s = String(s || "").replace(/\s+/g, " ").trim();
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+/* 决策分析页（一个决策一页）内的三个环节：页签切换，上一步/下一步先在环节间走 */
+const SS_PHASES = ["可能结果", "评估概率", "组内比较"];
+
+const MOD_SS = {
+  id: "ss",
+  name: "六步决策",
+  chapter: "第四章",
+  src: "《对赌（实践版）》第四章 · 六步决策法",
+  desc: "列候选、排结果、估概率、组内比较，把“拍脑袋”变成有根据的估算。",
+  color: "#b85415",
+  reportName: "六步决策规划报告",
+  titleKey: "bg",
+  titleStep: "s1",
+  titleNote: "请先填写背景描述",
+  conclusionKey: "conclusion",
+  conclusionLabel: "最终决定与结论",
+  skipEmptySection: true,
+  // steps 是步骤模板注册表；实际路径由 path(values) 动态生成：
+  // s1 →（对每个决策 i，各一页）sd_d{i} → s5
+  steps: [
+    { id: "s1", title: "背景与候选决策", tag: "锚定背景", need: function (v) { return decisionsOf(v).length > 0; }, needHint: "请先填写本次决策，或添加一个候选决策", desc: "写下背景，并列出多个候选决策。" },
+    { id: "sd", title: "决策分析", tag: "结果 · 概率 · 比较", desc: "对每个决策分别进行：同一页内切换“可能结果 / 评估概率 / 组内比较”三个环节。" },
+    { id: "s5", title: "最终选择", tag: "跨决策比较", desc: "综合比较所有候选决策，做出最终选择并写下结论。" }
+  ],
+  // 动态路径：背景非空且至少有一个决策时，路径才延伸到 s5 之前
+  path: function (v) {
+    v = v || {};
+    const reg = {};
+    MOD_SS.steps.forEach(s => { reg[s.id] = s; });
+    const p = [reg.s1];
+    const ds = decisionsOf(v);
+    if (!String(v.bg || "").trim() || !ds.length) return p;
+    /* 一个决策一页：结果、概率、比较三个环节合并到同一步，页签切换 */
+    ds.forEach((d, i) => {
+      p.push({ id: "sd_d" + i, base: "sd", di: i, title: "决策 " + (i + 1), tag: reg.sd.tag, desc: reg.sd.desc });
+    });
+    p.push(reg.s5);
+    return p;
+  },
+  stepMeta: {
+    s1: "先把这一系列决策的背景交代清楚，再列出候选决策：第 1 个决策是上面的“本次决策”（与决策速度同步），其余候选追加在下面——候选列得越全，后面的比较越可靠。接下来每一步对应一个决策。",
+    sd: "同一个决策的三个环节合在这一页，用上方页签切换。① 可能结果：把它可能导向的结果全部摆上树，先穷尽、再排序——顺序就是你的偏好；② 评估概率：所有结果列在一张表里，直接在结果后面填你估计的概率，下面三问（你知道的 / 你不知道的 / 为什么这样估）统一解释这些估计——信息缺口越大，估计越该保守；③ 组内比较：综合“可能结果 × 可能性”，选出这个决策下的第一选择。",
+    s5: "回头看每个决策在“组内比较”环节选出的结果，跨决策综合比较，做出最终选择。决定几乎都是在不完全信息下做出的——比较完就趁早定下来。"
+  },
+  verdict: function (v) {
+    const ds = decisionsOf(v);
+    if (!ds.length) return { t: "尚未填写本次决策", cls: "vb-neutral" };
+    const picks = finalPicks(v).map(i => ds[i]).filter(Boolean).map(d => d.t);
+    if (!picks.length) return { t: "尚未做出最终选择（共 " + ds.length + " 个决策）", cls: "vb-neutral" };
+    const done = !!String(v.conclusion || "").trim();
+    return { t: "最终选择：" + picks.join("；") + (done ? "" : "（结论陈述未填写）"), cls: done ? "vb-success" : "vb-accent" };
+  },
+  fields: function (stepId, vals) {
+    const v = vals || {};
+    const m = /^(s\d|sd)(?:_d(\d+))?$/.exec(String(stepId));
+    if (!m) return [];
+    const base = m[1];
+    const di = m[2] != null ? Number(m[2]) : null;
+    if (base === "s1") {
+      /* 决策速度排在前面的（默认流程等）：背景与本次决策是只读投射，用来对照着填下面的候选决策 */
+      const ro = dpBefore("ss");
+      return [
+        { key: "bg", ro: ro, type: "textarea", placeholder: "交代处境、约束和时间点，例：我在考虑要不要离开现在的公司……",
+          reportLabel: "背景描述",
+          label: "背景描述：" + (ro ? "（来自决策速度第 1 步的“处境描述”，此处只读）" : "这一系列决策是围绕什么展开的？（与决策速度的“处境描述”实时同步，改哪边都会更新）") },
+        { key: "title", ro: ro, type: "text", placeholder: "用一句话陈述这个决策",
+          reportLabel: "本次决策（第 1 个决策）",
+          label: "本次决策（第 1 个决策）" + (ro ? "（来自决策速度的决策陈述，此处只读）" : "（与决策速度的决策陈述实时同步，改哪边都会更新）") },
+        { key: "decisions", label: "其他候选决策（第 1 个决策是上面的“本次决策”；这里逐个追加其余候选——也可以先在决策速度的“披着狼皮的羊”环节列出，走到这里会自动带入）", type: "list", itemPlaceholder: "例：接受波士顿的工作", emptyHint: "点击下方按钮按需添加" }
+      ];
+    }
+    if (base === "s5") {
+      const ds = decisionsOf(v);
+      if (!ds.length) return [{ type: "note", label: "还没有决策", text: "请先回到第 1 步填写本次决策，或添加候选决策。" }];
+      return [
+        { key: "final_pick", label: "综合比较所有决策后，你的最终选择是？（可多选）", type: "checks",
+          options: ds.map((d, i) => {
+            const opts = optListD(v, i);
+            const pm = /^opt(\d+)$/.exec(String(v["pick_d" + i] == null ? "" : v["pick_d" + i]));
+            const oi = pm ? Number(pm[1]) : -1;
+            const desc = (oi >= 0 && opts[oi]) ? "已选：结果 " + (oi + 1) + " · " + opts[oi].t : "这个决策的“组内比较”尚未做出选择";
+            return ["d" + i, "决策 " + (i + 1) + "：" + d.t, desc];
+          }) },
+        { key: "conclusion", label: "最终决定与结论陈述", type: "textarea", placeholder: "例：选择决策 2——先做三个月可逆尝试；放弃决策 1，是因为它的下行风险不可逆。" }
+      ];
+    }
+    if (di == null) return [];
+    if (base === "sd") {
+      /* 一个决策一页：三个环节用页签切换（pg = 环节序号） */
+      const sfx = "_d" + di;
+      const opts = optListD(v, di);
+      const fs = [{ type: "ptabs", labels: SS_PHASES }];
+      /* ① 可能结果 */
+      fs.push({ key: "options" + sfx, type: "otree", pg: 0 });
+      fs.push({ key: "rank_reason" + sfx, pg: 0, label: "你是出于什么目标和价值取向才这样排序的？", type: "textarea", placeholder: "例：我把家人和健康排在收入前面，所以……" });
+      /* 勾选“有”后：先从这条决策已列出的潜在结果里挑一个，挑完再说明理由 */
+      const optChoices = opts.map((o, j) => ["opt" + j, "结果 " + (j + 1) + "：" + o.t]);
+      const bestOn = function (vv) { return vv["best_yes" + sfx] === "yes"; };
+      const worstOn = function (vv) { return vv["worst_yes" + sfx] === "yes"; };
+      /* 理由：挑完之后才出现；旧数据把“是哪一个”和理由写在同一格，填过就继续显示，免得旧报告丢答案 */
+      const reasonOn = function (yesOn, pickKey, noteKey) {
+        return function (vv) {
+          if (!yesOn(vv)) return false;
+          return (vv[pickKey] != null && vv[pickKey] !== "") || String(vv[noteKey] || "").trim() !== "";
+        };
+      };
+      const noOptNote = function (which) {
+        return { type: "note", pg: 0, label: "还没有潜在结果", text: "请先在上方“潜在结果”里列出结果，再回来勾选" + which + "。" };
+      };
+      fs.push({ key: "best_yes" + sfx, pg: 0, label: "是否有哪个结果明显好于其他结果？", type: "radio", inline: true, options: [["yes", "有", "存在一个明显最优的结果"], ["no", "没有", "最好的几个结果难分高下"]] });
+      if (optChoices.length) {
+        fs.push({ key: "best_pick" + sfx, pg: 0, label: "是哪一个？（从这条决策已列出的潜在结果中选择）", type: "radio", options: optChoices, showIf: bestOn });
+        fs.push({ key: "best_note" + sfx, pg: 0, label: "为什么明显更好？", type: "textarea", placeholder: "例：它在收入和发展上都占优，且失败也能退回原状……", showIf: reasonOn(bestOn, "best_pick" + sfx, "best_note" + sfx) });
+      } else {
+        fs.push(Object.assign(noOptNote("明显更好的那一个"), { showIf: bestOn }));
+      }
+      fs.push({ key: "worst_yes" + sfx, pg: 0, label: "是否有哪个结果明显比其他结果差？", type: "radio", inline: true, options: [["yes", "有", "存在一个明显最糟的结果"], ["no", "没有", "最差的情况也都还能接受"]] });
+      if (optChoices.length) {
+        fs.push({ key: "worst_pick" + sfx, pg: 0, label: "是哪一个？（从这条决策已列出的潜在结果中选择）", type: "radio", options: optChoices, showIf: worstOn });
+        fs.push({ key: "worst_note" + sfx, pg: 0, label: "为什么明显更差？", type: "textarea", placeholder: "例：它会直接影响健康，且不可逆……", showIf: reasonOn(worstOn, "worst_pick" + sfx, "worst_note" + sfx) });
+      } else {
+        fs.push(Object.assign(noOptNote("明显更差的那一个"), { showIf: worstOn }));
+      }
+      /* ② 评估概率：结果全部列在一张表里，直接在结果后面填概率；
+         下面三问是对本页所有概率估计的统一解释，不按结果拆分 */
+      if (!opts.length) {
+        fs.push({ type: "note", pg: 1, label: "还没有潜在结果", text: "请先在本页的“可能结果”环节添加潜在结果，这里会为每个结果生成概率评估。" });
+      } else {
+        fs.push({ type: "pctrows", pg: 1, source: "options" + sfx, prefix: "prob_d" + di + "_",
+          headLeft: "潜在结果（在右侧填你估计的概率）" });
+        fs.push({ key: "know_d" + di, pg: 1, label: "你知道的信息", type: "list", half: true, itemPlaceholder: "已掌握的事实、数据、经验……", emptyHint: "点击下方按钮按需添加",
+          hint: "下面三问解释的是上面所有这些概率估计，不必逐个结果写。" });
+        fs.push({ key: "unknow_d" + di, pg: 1, label: "你不知道的信息", type: "list", half: true, itemPlaceholder: "缺失的、不确定的信息……", emptyHint: "点击下方按钮按需添加" });
+        fs.push({ key: "probwhy_d" + di, pg: 1, label: "你为什么这样评估概率？", type: "textarea", placeholder: "例：根据以往经验，这类情况大约四成会发生；但团队执行力是未知数……" });
+      }
+      /* ③ 组内比较 */
+      if (!opts.length) {
+        fs.push({ type: "note", pg: 2, label: "还没有潜在结果", text: "请先在本页的“可能结果”环节添加潜在结果，再回来比较。" });
+      } else {
+        fs.push({ type: "sumlist", pg: 2, source: "options" + sfx, probPrefix: "prob_d" + di + "_",
+          label: "回顾前两个环节的判断：偏好排序（从上到下 = 更偏好）与每个结果的估计概率" });
+        fs.push({ key: "pick" + sfx, pg: 2, label: "综合比较（可能结果 × 可能性）：这个决策下，你的第一选择是？", type: "radio", options: opts.map((o, j) => ["opt" + j, "结果 " + (j + 1) + "：" + o.t]) });
+        fs.push({ key: "reason" + sfx, pg: 2, label: "选择理由", type: "textarea", placeholder: "例：它的上行潜力足以抵消下行风险，且可能性分布更有利。" });
+      }
+      return fs;
+    }
+    return [];
+  }
+};
+
+/* ---------- 模块三：内外视角（移植自 perspective，第六章，原 ls 前缀 pv） ---------- */
+/* ---------- 内外视角：多组观点追踪（vt_groups 与 cal_groups 索引对齐） ---------- */
+function pvNorm(v) {
+  if (!v || typeof v !== "object") return v;
+  /* 旧结构兼容：单组的外/内视角与校准结论包装成第 1 组（不丢历史数据） */
+  if (!Array.isArray(v.vt_groups)) {
+    const out = Array.isArray(v.outside_views) ? v.outside_views : [];
+    const ins = Array.isArray(v.inside_views) ? v.inside_views : [];
+    const cal = { same_way: v.same_way || "", deviate: v.deviate || "", calibrated: v.calibrated || "", conclusion: v.conclusion || "" };
+    const hasVt = out.length || ins.length;
+    const hasCal = Object.keys(cal).some(k => String(cal[k] || "").trim());
+    v.vt_groups = hasVt ? [{ name: "", outside_views: out, inside_views: ins }] : [];
+    v.cal_groups = hasCal ? [cal] : [];
+    delete v.outside_views; delete v.inside_views;
+    delete v.same_way; delete v.deviate; delete v.calibrated; delete v.conclusion;
+  }
+  if (!Array.isArray(v.cal_groups)) v.cal_groups = [];
+  if (!v.vt_groups.length) v.vt_groups.push({ name: "", outside_views: [], inside_views: [] });
+  v.vt_groups = v.vt_groups.map(g => (g && typeof g === "object") ? g : {});
+  v.vt_groups.forEach(g => {
+    if (!Array.isArray(g.outside_views)) g.outside_views = [];
+    if (!Array.isArray(g.inside_views)) g.inside_views = [];
+    if (g.name == null) g.name = "";
+  });
+  v.cal_groups = v.cal_groups.map(g => (g && typeof g === "object") ? g : {});
+  while (v.cal_groups.length < v.vt_groups.length) v.cal_groups.push({});
+  if (v.cal_groups.length > v.vt_groups.length) v.cal_groups.length = v.vt_groups.length;
+  return v;
+}
+function pvVtGroups(v) { pvNorm(v); return Array.isArray(v.vt_groups) ? v.vt_groups : []; }
+function pvGroupName(g, i) {
+  const n = String((g && g.name) || "").trim();
+  return n || ("观点 " + (i + 1));
+}
+/* 取某一组的数据对象（kind: "vt" | "cal"），create=false 时不存在则返回空对象 */
+function pvGroupObj(mv, kind, i, create) {
+  if (!mv || typeof mv !== "object") return {};
+  pvNorm(mv);
+  const arr = kind === "cal" ? mv.cal_groups : mv.vt_groups;
+  const idx = Number(i) || 0;
+  if (arr[idx] && typeof arr[idx] === "object") return arr[idx];
+  if (!create) return {};
+  arr[idx] = kind === "cal" ? {} : { name: "", outside_views: [], inside_views: [] };
+  return arr[idx];
+}
+/* 各组结论汇总（报告章末用） */
+function pvConclusions(mv) {
+  pvNorm(mv);
+  const parts = [];
+  mv.cal_groups.forEach((g, i) => {
+    const c = String((g && g.conclusion) || "").trim();
+    if (c) parts.push(pvGroupName(mv.vt_groups[i], i) + "：" + c);
+  });
+  return parts.join("；");
+}
+
+const MOD_PV = {
+  id: "pv",
+  name: "内外视角",
+  chapter: "第六章",
+  src: "《对赌（实践版）》第六章 · 内视角与外视角",
+  desc: "用长期保存的“判断基准”识别内外视角，外视角校准内视角盲点。",
+  color: "#1a7f3f",
+  reportName: "观点跟踪报告",
+  titleKey: "title",
+  titleStep: "s2",
+  titleNote: "请先填写回顾名称",
+  conclusionKey: function (mv) { return pvConclusions(mv); },
+  conclusionLabel: "各组结论",
+  skipEmptySection: false,
+  /* 判断基准（原第 1 步）不再占流程步骤：它是长期保存的辅助信息，右侧辅助栏「判断基准」页签里填写 */
+  steps: [
+    { id: "s2", title: "观点追踪", tag: "内外分列", desc: "默认直接开始观点追踪（名字与处境从最初环节带入；单独使用内外视角或把它排在第一时，这两问由你自己填）。可添加多组：每组代表一个人 / 一个观点对象，组内把外视角与内视角的描述左右分列、按需添加。" },
+    { id: "s3", title: "校准与结论", tag: "内外交集", desc: "对照内外视角的异同，判断偏离的部分是处境特殊还是内视角的盲点，写下校准后更准确的判断。观点追踪有几组，这里就有几组校准与结论。" }
+  ],
+  stepMeta: {
+    s2: "先做外视角，再切换到内视角：左边从旁观者的角度描述（你会给面临同样问题的朋友什么建议？有相关基准数吗？），右边从自己的角度描述。要听多个人的看法就添加多组，每组的名字写在组名下。",
+    s3: "准确性存在于内外视角的交集：逐个观点对照两边的描述，找出完全相同的地方，判断偏离的部分是处境特殊还是内视角的盲点。顶部页签与观点追踪一一对应。"
+  },
+  verdict: function (v) {
+    pvNorm(v);
+    const done = (v.cal_groups || []).some(g => g && ((String(g.same_way || "").trim()) || (String(g.calibrated || "").trim())));
+    return done ? { t: "已完成校准", cls: "vb-accent" } : { t: "尚未完成校准", cls: "vb-neutral" };
+  },
+  fields: function (stepId, vals) {
+    const v = vals || {};
+    if (stepId === "s1") return [
+      { key: "base_other", label: "1. 举例说明：你的朋友 / 家人 / 同事曾经受困于内视角的经历", type: "textarea",
+        placeholder: "例：同事认定“领导对我有意见”，只觉得是自己处境特殊，从没看过同类岗位的普遍情况。" },
+      { key: "base_told", label: "2. 你跟他们说过吗？为什么？", type: "textarea",
+        placeholder: "例：说过 / 没说——当时觉得指出他的盲点会伤感情……" },
+      { key: "base_self", label: "3. 举例说明：你觉得自己曾经受困于内视角的经历", type: "textarea",
+        placeholder: "例：我以为创业失败只是因为运气差，没去查同类项目的真实存活率。" },
+      { key: "base_impact", label: "4. 受困于内视角，在哪些方面对你的决策产生了负面影响？", type: "textarea",
+        placeholder: "例：高估自己的能力圈、低估普遍失败率、忽视与自己立场相反的证据……" },
+      { key: "base_phrase", label: "5. 记录一下：受困于内视角时，通常会怎么说、怎么想？", type: "textarea",
+        placeholder: "例：“我的情况不一样”“别人不懂我的处境”“这次肯定没问题”……" },
+      { key: "base_baserate", label: "6. 基准数练习：一件事，你在没有调查的情况下判断的概率，以及实际调查后得知的基准概率", type: "triplist",
+        cols: [["a", "事情：例——新餐厅一年内存活的概率"], ["b", "事前判断的概率：如 80%"], ["c", "调查后的基准概率：如 40%"]],
+        emptyHint: "点击下方按钮添加一条" }
+    ];
+    if (stepId === "s2") {
+      const own = pvSelfInput();
+      const alone = selOf(values).length === 1;
+      pvNorm(v);
+      const out = [
+        { key: "title", label: alone ? "给本次回顾起个名字" : "这个决策具体是什么？", type: "text", wizHide: !own,
+          placeholder: alone ? "例：要不要转行做产品经理" : "用一句话陈述这个决策，例：要不要搬去另一个城市" },
+        { key: "problem", label: alone ? "本次你想分析的一个你一直在努力解决的问题（详细描述）" : "具体描述你当前的处境（背景、约束、时间点）",
+          type: "textarea", wizHide: !own,
+          placeholder: alone ? "详细描述这个问题：它是什么、持续了多久、你做过哪些尝试、卡在哪里……" : "例：租约三个月后到期，新公司 offer 本周截止，家人希望离学校近一些……" },
+        { type: "pvtabs", kind: "vt", label: "观点追踪（可添加多组，每组一个人 / 一个观点对象）" }
+      ];
+      v.vt_groups.forEach((g, i) => {
+        out.push({ type: "vtgroup", key: "vt", grp: "vt", gi: i, whenActive: true });
+      });
+      return out;
+    }
+    if (stepId === "s3") {
+      pvNorm(v);
+      const out = [{ type: "pvtabs", kind: "cal", label: "校准与结论（与观点追踪逐组对应）" }];
+      v.vt_groups.forEach((g, i) => {
+        out.push({ type: "calgroup", key: "cal", grp: "cal", gi: i, whenActive: true, subs: [
+          { key: "same_way", label: "1. 结合内外视角，看看描述中有哪些完全相同的地方。", type: "textarea",
+            grp: "cal", gi: i, placeholder: "例：两边都承认“客流不稳定”是核心风险——这一点最可信。" },
+          { key: "deviate", label: "2. 偏离的部分：是你的处境确实特殊，还是内视角的盲点？", type: "textarea",
+            grp: "cal", gi: i, placeholder: "例：我认为“我的行业不一样”——但基准数覆盖了同类行业，这更可能是内视角的盲点……" },
+          { key: "calibrated", label: "3. 校准后更准确的判断", type: "textarea",
+            grp: "cal", gi: i, placeholder: "例：这件事成功的基准概率约 40%，我的条件略好，估计 50% 左右；先小成本验证再加大投入。" },
+          { key: "conclusion", label: "一句话结论", type: "textarea",
+            grp: "cal", gi: i, placeholder: "例：先外后内——用基准数和旁观者校准我的乐观。" }
+        ] });
+      });
+      return out;
+    }
+    return [];
+  }
+};
+
+/* ---------- 模块四：事前验尸（移植自 pre-mortem，第八章，原 ls 前缀 pm） ---------- */
+const MOD_PM = {
+  id: "pm",
+  name: "事前验尸",
+  chapter: "第八章",
+  src: "《对赌（实践版）》第八章 · 负向思考",
+  desc: "假想失败与成功、评估概率、做出承诺，并为坏运气买好保险。",
+  color: "#6d5a9e",
+  reportName: "事前验尸报告",
+  titleKey: "title",
+  titleStep: "s1",
+  titleNote: "请先填写目标名称",
+  conclusionKey: "conclusion",
+  conclusionLabel: "一句话结论",
+  skipEmptySection: false,
+  steps: [
+    { id: "s1", title: "目标锚定", tag: "明确目标", desc: "前面有其它工具时，这里只展示要验的计划（取自六步决策的「最终选择」，只读），你只需填合理期限；单独使用或排第一时，目标名称与描述由你自己填。" },
+    { id: "s2", title: "事前验尸", tag: "假想失败", desc: "假想期限已到而你失败了：分别列出可控与不可控的失败原因。" },
+    { id: "s3", title: "倒推", tag: "假想成功", desc: "假想目标已达成：分别列出可控与不可控的成功原因。" },
+    { id: "s4", title: "决策表", tag: "评估概率", desc: "为每个失败与成功原因填写发生概率（百分比），分清轻重。" },
+    { id: "s5", title: "决策与承诺", tag: "落地行动", desc: "决定推进/修正/放弃：推进则落成预先承诺与对冲；修正或放弃则可带着记录开启新一轮计划。" }
+  ],
+  stepMeta: {
+    s2: "从未来的失败回望现在（前瞻性后见之明）：站在“已经失败”的角度，失败原因会看得更清楚。可控与不可控要分开列。",
+    s3: "倒推与事前验尸互补：只想象失败会过度悲观，只想象成功会过度自信——两者结合才是完整的未来图景。",
+    s4: "决策表的重点不是列全，而是分清轻重：高概率的不可控因素值得对冲，高概率的可控因素值得预先承诺。概率只填数字即可（如 40），% 会自动加上。",
+    s5: "继续推进：用预先承诺和对冲落地。修正目标或放弃转向：写下一句话结论，并可开启新一轮计划——新一轮从第 1 步重新分步走完，本轮的记录会保留在右侧回顾栏，帮你想得更清楚（思考留痕）。"
+  },
+  verdict: function (v) {
+    const map = { go: ["继续推进（已识别风险并做出承诺）", "vb-success"], adjust: ["修正目标或计划后再推进", "vb-accent"], drop: ["放弃或转向", "vb-warning"] };
+    if (v.decision && map[v.decision]) return { t: map[v.decision][0], cls: map[v.decision][1] };
+    return { t: "尚未做出推进决策", cls: "vb-neutral" };
+  },
+  fields: function (stepId, vals) {
+    const v = vals || {};
+    if (stepId === "s1") {
+      const deadline = { key: "deadline", label: "合理的完成期限", type: "text", placeholder: "例：6 个月后" };
+      /* 单独使用、或排在第一位（前面没有上游）：两问由用户自己填 */
+      if (!upstreamOf("pm")) return [
+        { key: "title", label: "给这个目标起个名字", reportLabel: "本次决策", type: "text", placeholder: "例：六个月内上线新产品" },
+        { key: "goal_desc", label: "目标或决策是什么？", reportLabel: "本次要验尸的计划", type: "textarea", placeholder: "具体描述你要完成的事情。" },
+        deadline
+      ];
+      /* 其余情况：只展示前面环节的投射（本次要验尸的计划），下面只填期限 */
+      const hasPlan = !!pmPlan().text;
+      return [
+        { key: "title", label: "本次决策（来自决策速度）", reportLabel: "本次决策", type: "text", wizHide: true },
+        { key: "goal_desc", ro: true, type: "textarea", reportLabel: "本次要验尸的计划",
+          label: "本次要验尸的计划（来自六步决策的「最终选择」，此处只读）",
+          hint: hasPlan ? "" : "六步决策的「最终选择」还没有勾选，先回到那一步勾选要验证的决策。" },
+        deadline
+      ];
+    }
+    if (stepId === "s2") return [
+      { key: "fail_ctrl", label: "事前验尸：假想期限已到而你失败了。列出可控的失败原因（你或团队的决策与行动，至少三条）", type: "list",
+        itemPlaceholder: "例：排期过于乐观，没留缓冲", emptyHint: "点击下方按钮按需添加" },
+      { key: "fail_unctrl", label: "列出不可控的失败原因（运气、他人、环境，至少三条）", type: "list",
+        itemPlaceholder: "例：行业监管政策突变", emptyHint: "点击下方按钮按需添加" }
+    ];
+    if (stepId === "s3") return [
+      { key: "success_ctrl", label: "倒推：假想目标已顺利达成。列出可控的成功原因（你或团队的决策与行动，至少三条）", type: "list",
+        itemPlaceholder: "例：每周复盘进度并及时调整", emptyHint: "点击下方按钮按需添加" },
+      { key: "success_unctrl", label: "列出不可控的成功原因（运气、他人、环境，至少三条）", type: "list",
+        itemPlaceholder: "例：竞品恰好退出市场", emptyHint: "点击下方按钮按需添加" }
+    ];
+    if (stepId === "s4") return [
+      { type: "pcttable", key: "pcttable",
+        groups: [
+          { label: "技术（可控）", fail: "fail_ctrl", succ: "success_ctrl" },
+          { label: "运气（不可控）", fail: "fail_unctrl", succ: "success_unctrl" }
+        ],
+        emptyHint: "第 2、3 步还没有填写原因，请先回去补充——这里会自动带入你列出的每一条原因。" }
+    ];
+    if (stepId === "s5") return [
+      { key: "decision", label: "基于以上分析，你的决定是？", type: "radio", options: [["go", "继续推进", "风险可承受，且已有应对"], ["adjust", "修正目标或计划", "降低目标、延长期限或改变路径"], ["drop", "放弃或转向", "事前验尸暴露了不可承受的风险"]] },
+      { key: "commit_tbl", type: "strattable", source: "fail_ctrl", rk: "commit",
+        label: "预先承诺：逐条应对可控（技术）的失败原因——为阻止失败行为、鼓励成功行为，你会做什么？",
+        headLeft: "可控的失败原因（第 2 步 + 第 4 步概率）", headRight: "预先承诺（我会怎么做）",
+        placeholder: "例：排期预留 20% 缓冲，每周检查里程碑……",
+        showIf: v => v.decision === "go",
+        emptyHint: "第 2 步没有填写可控的失败原因——如无内容可先回去补充。" },
+      { key: "hedge_tbl", type: "strattable", source: "fail_unctrl", rk: "hedge",
+        label: "对冲：逐条应对不可控（运气）的失败原因——花一些成本，为高概率的坏运气买保险（你希望永远用不上它）",
+        headLeft: "不可控的失败原因（第 2 步 + 第 4 步概率）", headRight: "对冲策略（买的保险）",
+        placeholder: "例：预留备用供应商；关键岗位安排备份……",
+        showIf: v => v.decision === "go",
+        emptyHint: "第 2 步没有填写不可控的失败原因——如无内容可先回去补充。" },
+      { key: "conclusion", label: "一句话结论", type: "textarea", placeholder: "例：最大的风险是排期——先加缓冲，再启动。" },
+      { key: "new_round", label: "是否开启新一轮计划？", type: "radio",
+        showIf: v => v.decision === "adjust" || v.decision === "drop",
+        options: [["yes", "是——从第 1 步开始新一轮（分步走完，本轮记录保留在右侧回顾栏）"], ["no", "否——到此为止"]] }
+    ];
+    return [];
+  }
+};
+
+/* 模块注册表（默认流程顺序 = dp → ss → pv → pm） */
+const MODULE_LIST = [MOD_DP, MOD_SS, MOD_PV, MOD_PM];
+const MODS = {};
+MODULE_LIST.forEach(m => { MODS[m.id] = m; });
+const DP_STEP_MAP = {};
+MOD_DP.steps.forEach(s => { DP_STEP_MAP[s.id] = s; });
+const DEFAULT_SEL = ["dp", "ss", "pv", "pm"];
+const CN_NUM = ["一", "二", "三", "四", "五", "六"];
+
+/* ---------- 会话级配置：s0 起始步 ---------- */
+const CONF = {
+  kicker: "基于《对赌（实践版）》第四 / 六 / 七 / 八章 · 四合一辅助决策",
+  h1: "辅助决策工具箱",
+  noun: "辅助决策",
+  startLabel: "开始一次辅助决策",
+  reportKicker: "辅助决策组合报告 · 基于《对赌（实践版）》",
+  intro: [
+    "做决策之前，可以按需组合四种辅助手段：先判断这个决策该快还是该慢（决策速度），值得慢的就走完整流程（六步决策），再用外视角校准判断（内外视角），最后为坏结果提前买好保险（事前验尸）。",
+    "在起始步勾选本次要用的模块（1~4 个任意组合，可排序），也可以一键使用默认流程。勾选的模块会串成一条向导流程走到底，最终产出一份组合报告。"
+  ]
+};
+const S0_STEP = { id: "s0", title: "起始 · 选择本次要用的工具", tag: "起始", desc: "给这次决策起个名字，勾选并排序要使用的模块。" };
+const S0_FIELDS = [
+  { key: "title", label: "给这次决策起个名字", type: "text", placeholder: "例：要不要接受新公司的 offer" },
+  { key: "sel", label: "先选一条路线：跟着默认流程走，或者自己挑工具（两者互斥）", type: "modpick",
+    hint: "没完整读过这本书：直接用默认流程，按固定顺序走完四个模块。读过或知道要用哪个：自己勾选 1~4 个，勾选后在下方词条列表中拖动 ⠿ 调整执行顺序。选中一边，另一边会变灰。" }
+];
+
+/* =====================================================================
+ * 通用引擎（以 pre-mortem 引擎为基线，轮次 scope 泛化为模块作用域）
+ * ===================================================================== */
+
+const app = document.getElementById("app");
+const LS_DRAFT = "ad_draft";
+const LS_REPORTS = "ad_reports";
+const LS_MIGRATED = "ad_migrated";
+const LS_BASE = "pv_baseline";   // 判断基准库：全局 key 原样保留，跨会话共享
+
+let view = "home";
+let cur = 0;                 // 当前在组装路径中的下标
+let pmRound = 0;             // 事前验尸模块内的当前轮次（scope 套 scope）
+let values = {};             // 会话 values：{ title, sel:[...], mods:{ dp:{}, ss:{}, pv:{}, pm:{} } }
+let reports = loadReports();
+let baseline = loadBaseline();
+let viewingReport = null;
+let editingReport = null;     // 正在编辑的已保存报告（保存时更新这一份，而不是新增）
+let suspendedDraft = null;   // 进入「编辑报告」前的草稿快照，编辑结束或放弃时还原
+let followupReport = null;
+let fuVals = {};
+let fuSummary = "";
+let resetScrollNext = true;
+let reviewEdit = -1;
+let rightTab = null;
+let dndSrc = null;           // otree 拖拽源 { scope, key, ri }
+let pvTab = 0;               // 内外视角模块内「当前第几组观点追踪」（多组页签）
+let pvLastMod = null;        // 上一次渲染所在的模块：换模块时把内外视角的组页签复位到第 1 组
+let subTab = 0;              // ss 决策分析页内「可能结果 / 评估概率 / 组内比较」环节页签
+
+function loadReports() {
+  try { return JSON.parse(localStorage.getItem(LS_REPORTS)) || []; } catch (e) { return []; }
+}
+function saveDraft() {
+  try { localStorage.setItem(LS_DRAFT, JSON.stringify({ c: cur, r: pmRound, e: editingReport ? editingReport.id : null, v: values })); } catch (e) {}
+}
+function loadDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_DRAFT));
+    if (!d) return null;
+    if (d.v) return d;
+    return { c: 0, r: 0, v: d };
+  } catch (e) { return null; }
+}
+/* 草稿若是某份报告的编辑中会话，取出那一份（用于按钮文案与恢复编辑目标） */
+function draftEditTarget(d) {
+  if (!d || !d.e) return null;
+  const hit = reports.filter(function (x) { return x.id === d.e; });
+  return hit.length ? hit[0] : null;
+}
+function persistReports() {
+  try { localStorage.setItem(LS_REPORTS, JSON.stringify(reports)); } catch (e) {}
+}
+function loadBaseline() {
+  try { return JSON.parse(localStorage.getItem(LS_BASE)) || {}; } catch (e) { return {}; }
+}
+function saveBaseline() {
+  try { localStorage.setItem(LS_BASE, JSON.stringify(baseline)); } catch (e) {}
+}
+
+/* 首次启动只进不出导入：读 dp2/ss2/pv/pm 的旧报告，逐条包装成单模块组合报告；旧 key 不删 */
+function migrateReports() {
+  let done = null;
+  try { done = localStorage.getItem(LS_MIGRATED); } catch (e) { return; }
+  if (done) return;
+  let seq = 0;
+  [["dp2", "dp"], ["ss2", "ss"], ["pv", "pv"], ["pm", "pm"]].forEach(pair => {
+    const prefix = pair[0], m = pair[1];
+    let arr = [];
+    try { arr = JSON.parse(localStorage.getItem(prefix + "_reports")) || []; } catch (e) {}
+    if (!Array.isArray(arr)) return;
+    arr.forEach(r => {
+      if (!r || typeof r !== "object" || !r.values) return;
+      const mods = {};
+      mods[m] = r.values;
+      const rec = {
+        id: (typeof r.id === "number" ? r.id : Date.now() + (++seq)),
+        date: r.date || "",
+        title: migratedTitle(m, r.values),
+        sel: [m],
+        mods: mods
+      };
+      if (Array.isArray(r.followups) && r.followups.length) rec.followups = r.followups;
+      reports.push(rec);
+    });
+  });
+  persistReports();
+  try { localStorage.setItem(LS_MIGRATED, "1"); } catch (e) {}
+}
+function migratedTitle(m, mv) {
+  if (m === "pm") return pmReportTitle(mv);
+  return String(mv[MODS[m].titleKey] || "").trim() || "未命名";
+}
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* 概率统一口径：只存数字，显示时统一加 % */
+function fmtPct(p) {
+  const s = String(p == null ? "" : p).replace(/[^\d.]/g, "");
+  return s ? s + "%" : "";
+}
+
+/* ---------- 模块作用域（泛化自 pre-mortem 的轮次 scope） ---------- */
+function selOf(v) {
+  return (Array.isArray(v.sel) ? v.sel : []).filter(m => MODS[m]);
+}
+/* 流程描述（回顾/报告/文字共用）：默认流程一句话，自定义按 sel 顺序 */
+function flowText(o) {
+  o = o || {};
+  if (o.flowmode === "default") return "默认流程（决策速度 → 六步决策 → 内外视角 → 事前验尸）";
+  const names = selOf(o).map(m => MODS[m].name);
+  if (!names.length) return "（未选择模块）";
+  return names.join(" → ") + (o.flowmode === "custom" ? "（自定义）" : "");
+}
+function ensureModScope(m) {
+  if (!values.mods || typeof values.mods !== "object") values.mods = {};
+  if (!values.mods[m] || typeof values.mods[m] !== "object") values.mods[m] = {};
+  return values.mods[m];
+}
+function peekModScope(mv, idx) {
+  idx = Number(idx) || 0;
+  if (idx === 0) return mv;
+  const rounds = Array.isArray(mv._rounds) ? mv._rounds : [];
+  return rounds[idx - 1] || {};
+}
+/* scope 字符串："root"（会话级）/ "base"（全局基准库）/ "m:xx"（模块第 1 轮）/ "m:pm@N"（pm 第 N+1 轮） */
+function resolveScope(str, create) {
+  if (str === "root") return values;
+  if (str === "base") return baseline;
+  const m = /^m:(\w+)(?:@(\d+))?$/.exec(String(str || ""));
+  if (!m) return values;
+  const mv = ensureModScope(m[1]);
+  const r = Number(m[2]) || 0;
+  if (r === 0) return mv;
+  if (!Array.isArray(mv._rounds)) {
+    if (!create) return {};
+    mv._rounds = [];
+  }
+  if (create) while (mv._rounds.length < r) mv._rounds.push({});
+  const scope = mv._rounds[r - 1];
+  if (scope && typeof scope === "object") return scope;
+  if (create) { mv._rounds[r - 1] = {}; return mv._rounds[r - 1]; }
+  return {};
+}
+function persistScope(str) {
+  if (str === "base") saveBaseline(); else saveDraft();
+}
+
+/* ---------- 路径组装器：s0 + 按勾选顺序拼接各模块内部路径 ---------- */
+function buildPath(v) {
+  const p = [{ mod: null, step: S0_STEP }];
+  selOf(v).forEach(m => {
+    moduleSteps(m, (v.mods && v.mods[m]) || {}).forEach(st => p.push({ mod: m, step: st }));
+  });
+  return p;
+}
+function moduleSteps(m, mv) {
+  const mod = MODS[m];
+  if (m === "dp") return mod.pathIds(mv).map(id => DP_STEP_MAP[id]).filter(Boolean);
+  if (mod.path) return mod.path(mv);
+  return mod.steps.slice();
+}
+function scopeStrFor(entry, roundOverride) {
+  if (!entry.mod) return "root";
+  if (entry.mod === "pm") {
+    const r = roundOverride != null ? roundOverride : pmRound;
+    return r > 0 ? "m:pm@" + r : "m:pm";
+  }
+  return "m:" + entry.mod;
+}
+function fieldsForEntry(entry, scopeVals) {
+  if (!entry.mod) return S0_FIELDS;
+  return MODS[entry.mod].fields(entry.step.id, scopeVals || {}) || [];
+}
+function stepMetaFor(entry, scopeVals) {
+  if (!entry.mod) return "";
+  const mod = MODS[entry.mod];
+  const base = String(entry.step.id).replace(/_d\d+$/, "");
+  const m = mod.stepMeta && mod.stepMeta[base];
+  if (!m) return "";
+  return typeof m === "function" ? m(scopeVals || {}) : m;
+}
+
+/* ---------- 推进门槛（ss 的 gateOk 泛化：titleStep + need 支持函数或字段 key） ---------- */
+function gateOk(entry) {
+  if (!entry.mod) {
+    return !!String(values.title || "").trim() && (values.flowmode === "default" || selOf(values).length >= 1);
+  }
+  const mod = MODS[entry.mod];
+  const scope = resolveScope(scopeStrFor(entry), false);
+  const baseId = entry.step.base || entry.step.id;
+  if (mod.titleStep && baseId === mod.titleStep && !String(scope[mod.titleKey] || "").trim()) return false;
+  if (entry.step.need) {
+    return typeof entry.step.need === "function"
+      ? !!entry.step.need(scope)
+      : !!String(scope[entry.step.need] == null ? "" : scope[entry.step.need]).trim();
+  }
+  return true;
+}
+function gateHint(entry) {
+  if (!entry.mod) {
+    return String(values.title || "").trim() ? "请勾选至少一个模块，或选择默认流程" : "请先填写决策名称";
+  }
+  const mod = MODS[entry.mod];
+  const baseId = entry.step.base || entry.step.id;
+  if (mod.titleStep && baseId === mod.titleStep) return mod.titleNote;
+  return entry.step.needHint || mod.titleNote || "";
+}
+function refreshNavGate() {
+  if (view !== "wizard") return;
+  const entries = buildPath(values);
+  const entry = entries[cur];
+  if (!entry) return;
+  const ok = gateOk(entry);
+  const btn = document.getElementById("btn-next");
+  const note = document.querySelector(".nav-note");
+  if (btn) btn.disabled = !ok;
+  if (note) note.textContent = ok ? "" : gateHint(entry);
+}
+
+/* ---------- 跨模块预填（仅当目标字段为空时填，每条规则每次会话只填一次，用户可改） ---------- */
+function applyPrefills(modId) {
+  const done = values._prefilled || (values._prefilled = {});
+  const mv = ensureModScope(modId);
+  const sel = selOf(values);
+  const t = String(values.title || "").trim();
+  const fill = (key, val) => {
+    const kk = modId + "." + key;
+    if (done[kk]) return;
+    done[kk] = 1;
+    if (val == null) return;
+    if (typeof val === "string" && !val.trim()) return;
+    if (Array.isArray(val) && !val.length) return;
+    const cur0 = mv[key];
+    if (cur0 != null && cur0 !== "" && !(Array.isArray(cur0) && cur0.length === 0)) return;
+    mv[key] = val;
+  };
+  if (modId === "pv") {
+    fill("title", t);
+  }
+  if (modId === "ss") {
+    /* 本次决策＝决策速度第 1 步「这个决策具体是什么？」，它就是第 1 个决策（不进候选数组） */
+    const t0 = dpDecisionText();
+    if (t0 && !String(mv.title || "").trim()) mv.title = t0;
+    if (sel.indexOf("dp") >= 0) {
+      /* 决策速度「披着狼皮的羊」环节列过的候选选项自动带入候选数组（去重，且不与本次决策重复）。
+         只在真的带入新条目时改写数组——否则每次渲染都会把用户刚添加的空行冲掉 */
+      const dpm = ensureModScope("dp");
+      const opts = (Array.isArray(dpm.options_extra) ? dpm.options_extra : []).filter(o => (o.t || "").trim());
+      if (opts.length) {
+        const curD = Array.isArray(mv.decisions) ? mv.decisions : [];
+        const known = curD.map(d => String((d && d.t) || "").trim()).concat([String(t0 || "").trim()]);
+        let added = 0;
+        opts.forEach(o => {
+          const txt = String(o.t).trim();
+          if (known.indexOf(txt) < 0) { curD.push({ t: o.t }); known.push(txt); added++; }
+        });
+        if (added) mv.decisions = curD;
+      }
+      if (!String(mv.bg || "").trim()) fill("bg", dpm.situation || "");
+    }
+    fill("bg", t0);
+  }
+  if (modId === "pm") {
+    fill("title", t);
+  }
+}
+/* ss 的 final_pick 值是 "d0" 形式，预填时还原为决策文本 */
+/* 六步决策「最终选择」里勾选的所有决策，带决策编号逐条列出（与「决策 N：…」口径一致） */
+function ssPickText(ssv) {
+  const ds = decisionsOf(ssv);
+  return finalPicks(ssv).map(i => ds[i] ? "决策 " + (i + 1) + "：" + ds[i].t : "").filter(Boolean).join("\n");
+}
+
+/* ---------- 跨模块同源文本：决策速度第 1 步与六步决策第 1 步共用 ---------- */
+/* ① 本次决策：唯一真值来源＝决策速度第 1 步的决策陈述（dp.title）；未走决策速度时退回会话名。
+   六步决策的“本次决策”文本框实时读这里，改哪边都写回这里，候选列表第 1 条（决策 1）同步为它。 */
+function dpDecisionText() {
+  const dp = (values && values.mods && values.mods.dp) || {};
+  return String(dp.title || "").trim() || String((values && values.title) || "").trim();
+}
+function syncDecisionText() {
+  if (!values || !values.mods) return;
+  const t = dpDecisionText();
+  if (!t) return;
+  const ss = values.mods.ss;
+  if (ss && typeof ss === "object") {
+    ss.title = t;
+    /* 旧数据：候选列表第 1 条曾是决策陈述的副本——去掉，决策清单改由 title（本次决策）+ decisions（其余候选）合成 */
+    if (Array.isArray(ss.decisions) && ss.decisions.length && ss.decisions[0] && String(ss.decisions[0].t || "").trim() === t) ss.decisions.shift();
+    saveDraft();
+  }
+}
+/* ② 背景描述：决策速度第 1 步「具体描述你当前的处境」（dp.situation）＝六步决策第 1 步「背景描述」（ss.bg）。
+   两侧同义，以决策速度为锚：任一侧为空时由另一侧补齐，两侧都有时以决策速度为准（与①同一口径）。 */
+/* ③ 内外视角 / 事前验尸：与最初环节（决策速度）同源——名字＝决策陈述，描述＝具体决策＋当前处境。
+   只在「与其它工具同用」时启用；单独使用某个工具时一切照旧（自己填名字与描述）。
+   名字与①同一口径（改哪边都会更新）；描述默认带入，在这里改过之后就以这里为准，不再被覆盖。 */
+function combined() {
+  return selOf(values).length > 1;
+}
+function dpSituationText() {
+  const dp = (values && values.mods && values.mods.dp) || {};
+  return String(dp.situation || "").trim();
+}
+function dpContextText() {
+  const parts = [];
+  const d = dpDecisionText();
+  if (d) parts.push("决策：" + d);
+  const s = dpSituationText();
+  if (s) parts.push("当前处境：" + s);
+  return parts.join("\n");
+}
+/* 把一个作用域的 title / 描述字段同步为最初环节的内容（描述改过就不覆盖），返回是否有改动 */
+function syncFromInitial(scope, descKey) {
+  if (!scope || typeof scope !== "object") return false;
+  const t = dpDecisionText();
+  const d = dpContextText();
+  const markKey = "_synced_" + descKey;
+  let changed = false;
+  if (t && scope.title !== t) { scope.title = t; changed = true; }
+  /* 描述：为空、或仍是上一次同步过来的内容（说明没在这里改过）时，跟着最初环节更新 */
+  if (d && (!String(scope[descKey] || "").trim() || scope[descKey] === scope[markKey])) {
+    if (scope[descKey] !== d || scope[markKey] !== d) { scope[descKey] = d; scope[markKey] = d; changed = true; }
+  }
+  return changed;
+}
+/* 内外视角自己填「决策 / 处境」两问的场合：单独使用它，或把它排在第一个（前面没有上游工具）。
+   其余情况（默认流程等）这两问从最初环节带入，向导里不再重复展示，但报告里照常收录。 */
+/* 某个模块前面是否还有别的工具（按 sel 顺序）：有上游 = 上下文由上游带入，本环节不重复问 */
+function upstreamOf(modId) {
+  return selOf(values).indexOf(modId) > 0;
+}
+/* 决策速度是否排在指定模块前面（决定与处境的实际来源） */
+function dpBefore(modId) {
+  const sel = selOf(values);
+  const d = sel.indexOf("dp"), i = sel.indexOf(modId);
+  return d >= 0 && i >= 0 && d < i;
+}
+function pvSelfInput() {
+  return !upstreamOf("pv");
+}
+function syncPvText() {
+  if (!values || !values.mods || pvSelfInput()) return;
+  if (syncFromInitial(values.mods.pv, "problem")) saveDraft();
+}
+/* 事前验尸要验的计划：默认取六步决策「最终选择」勾选的决策；还没勾选则退回最初环节的决策与处境 */
+function pmPlan() {
+  return { text: ssPickText((values && values.mods && values.mods.ss) || {}) };
+}
+function syncPmText() {
+  if (!values || !values.mods || !upstreamOf("pm")) return;
+  const pm = values.mods.pm;
+  if (!pm || typeof pm !== "object") return;
+  const t = dpDecisionText();
+  const plan = pmPlan().text;
+  let changed = false;
+  /* 名字与计划都是只读投射：一律以上游为准（旧报告里的历史内容也要被覆盖掉） */
+  [pm].concat(Array.isArray(pm._rounds) ? pm._rounds : []).forEach(scope => {
+    if (!scope || typeof scope !== "object") return;
+    if (t && scope.title !== t) { scope.title = t; changed = true; }
+    if (String(scope.goal_desc || "") !== plan) { scope.goal_desc = plan; changed = true; }
+  });
+  if (changed) saveDraft();
+}
+function syncBgText() {
+  if (!values || !values.mods) return;
+  const dp = values.mods.dp || {};
+  const ss = values.mods.ss || {};
+  const d = String(dp.situation || "").trim() ? dp.situation : "";
+  const b = String(ss.bg || "").trim() ? ss.bg : "";
+  const t = d || b;
+  if (!t) return;
+  let changed = false;
+  if (d !== t) { dp.situation = t; changed = true; }
+  if (b !== t) { ss.bg = t; changed = true; }
+  if (changed) saveDraft();
+}
+/* 会话标题变化：同步到六步决策的决策 1（决策速度未填时它是退路） */
+function syncRootKeyToDerived(k) {
+  if (k === "title") syncDecisionText();
+}
+/* 六步决策第 1 步编辑“本次决策”：写回决策速度第 1 步的决策陈述，并同步决策 1。
+   两处同源文本在一侧被编辑时写回另一侧的存值（含清空），使两侧始终是同一份文本。 */
+function syncDerivedKey(k, scopeStr, val) {
+  if (!values) return;
+  if (scopeStr === "m:ss" && k === "title") {
+    ensureModScope("dp").title = val;
+    syncDecisionText();
+    return;
+  }
+  if (k === "situation" && scopeStr === "m:dp") ensureModScope("ss").bg = val;
+  else if (k === "bg" && scopeStr === "m:ss") ensureModScope("dp").situation = val;
+  else if (k === "title" && (scopeStr === "m:pv" || scopeStr === "m:pm" || /^m:pm@\d+$/.test(scopeStr))) {
+    if (!combined()) return;
+    ensureModScope("dp").title = val;
+    syncDecisionText();
+  } else return;
+  saveDraft();
+}
+/* 同源文本的孪生输入框：若另一处（如右侧回顾卡）正显示同一字段，同步刷新它的显示值 */
+const TWIN_FIELDS = { "m:ss|bg": "m:dp|situation", "m:dp|situation": "m:ss|bg" };
+function mirrorTwinEl(root, k, scopeStr, val) {
+  const twin = TWIN_FIELDS[scopeStr + "|" + k];
+  if (!twin) return;
+  const p = twin.split("|");
+  root.querySelectorAll('[data-k="' + p[1] + '"]').forEach(x => {
+    if ((x.dataset.scope || "root") !== p[0] || x.value === val) return;
+    x.value = val;
+    if (x.tagName === "TEXTAREA") growEl(x);
+  });
+}
+
+function render() {
+  if (view === "home") renderHome();
+  else if (view === "baseline") renderBaseline();
+  else if (view === "wizard") renderWizard();
+  else if (view === "report") renderReport();
+  else if (view === "followup") renderFollowup();
+  growTextareas(app);
+  if (resetScrollNext) window.scrollTo(0, 0);
+  resetScrollNext = false;
+}
+function goRender() { resetScrollNext = true; render(); }
+
+function growTextareas(root) {
+  root.querySelectorAll("textarea").forEach(growEl);
+}
+function growEl(el) {
+  el.style.height = "auto";
+  el.style.height = (el.scrollHeight + 2) + "px";
+}
+
+/* ---------- 首页 ---------- */
+function renderHome() {
+  const draft = loadDraft();
+  const hasDraft = draft && draft.v && (String(draft.v.title || "").trim() || selOf(draft.v).length);
+  let reportsHtml = "";
+  if (reports.length === 0) {
+    reportsHtml = '<p class="empty-hint">还没有已保存的' + esc(CONF.noun) + '报告。走完向导流程后，报告会出现在这里。</p>';
+  } else {
+    reportsHtml = reports.map((r, i) => {
+      const sel = Array.isArray(r.sel) ? r.sel : [];
+      const tags = sel.map(m => MODS[m] ? '<span class="ri-tag" style="background:' + MODS[m].color + ';">' + esc(MODS[m].name) + '</span>' : "").join("");
+      const vds = sel.map(m => {
+        if (!MODS[m] || !r.mods || !r.mods[m]) return "";
+        const vd = MODS[m].verdict(r.mods[m]);
+        return vd && vd.t ? vd.t : "";
+      }).filter(Boolean).join(" ｜ ");
+      const fuCount = Array.isArray(r.followups) ? r.followups.length : 0;
+      return '<div class="report-item">' +
+        '<div class="ri-main" data-open="' + i + '">' +
+          '<div class="ri-title">' + esc(r.title || "未命名") + '</div>' +
+          '<div class="ri-meta">' + esc(r.date) + (r.updated ? ' · 更新于 ' + esc(r.updated) : "") + ' ' + tags + (vds ? '<span>' + esc(vds) + '</span>' : "") + (fuCount ? '<span>· 已追加评估 ' + fuCount + ' 次</span>' : "") + '</div>' +
+        '</div>' +
+        (sel.indexOf("pm") >= 0 ? '<button class="btn secondary" style="padding:6px 14px;font-size:12.5px;flex-shrink:0;" data-fu="' + i + '">追加评估</button>' : "") +
+        '<button class="btn secondary" style="padding:6px 14px;font-size:12.5px;flex-shrink:0;" data-editrep="' + i + '">编辑</button>' +
+        '<button class="btn danger-ghost" data-del="' + i + '">删除</button>' +
+      '</div>';
+    }).join("");
+  }
+
+  const flowHtml = '<div class="flow-grid">' + MODULE_LIST.map((m, mi) =>
+    '<div class="flow-card" style="border-top-color:' + m.color + ';">' +
+      '<h4>' + esc(m.name) + '</h4>' +
+      '<div class="fc-src">' + esc(m.src) + '</div>' +
+      '<div class="fc-desc">' + esc(m.desc) + '</div>' +
+    '</div>').join("") + '</div>';
+
+  app.innerHTML =
+    '<div class="narrow">' +
+    '<div class="hero">' +
+      '<div class="kicker">' + esc(CONF.kicker) + '</div>' +
+      '<h1>' + esc(CONF.h1) + '</h1>' +
+      CONF.intro.map(p => '<p>' + esc(p) + '</p>').join("") +
+      '<p>默认流程（可一键选用，也可在起始步自由勾选排序）：</p>' +
+      flowHtml +
+      '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">' +
+        '<button class="btn" id="btn-start">' + (hasDraft ? (draftEditTarget(draft) ? "继续编辑报告（" : "继续上次的" + esc(CONF.noun) + "（") + esc(String(draft.v.title || "未命名")) + "）" : CONF.startLabel) + '</button>' +
+        (hasDraft ? '<button class="btn secondary" id="btn-fresh">重新开始</button>' : "") +
+        '<button class="btn secondary" id="btn-baseline">个人判断基准库</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="report-list">' +
+      '<h2>已保存的' + esc(CONF.noun) + '报告</h2>' + reportsHtml +
+    '</div>' +
+    '</div>';
+
+  document.getElementById("btn-start").onclick = () => {
+    const d = loadDraft();
+    /* 新会话默认推荐「默认流程」（多数用户没完整读过这本书），可再自己改成组合 */
+    values = d ? d.v : { flowmode: "default", sel: DEFAULT_SEL.slice() };
+    pmRound = d ? (Number(d.r) || 0) : 0;
+    cur = d ? (Number(d.c) || 0) : 0;
+    editingReport = d ? draftEditTarget(d) : null;
+    if (pmRound > 0) resolveScope("m:pm@" + pmRound, true);
+    reviewEdit = -1; rightTab = null; subTab = 0; pvTab = 0;
+    view = "wizard"; goRender();
+  };
+  const fresh = document.getElementById("btn-fresh");
+  if (fresh) fresh.onclick = () => {
+    /* 重新开始同样默认推荐「默认流程」 */
+    values = { flowmode: "default", sel: DEFAULT_SEL.slice() }; pmRound = 0; cur = 0; editingReport = null; suspendedDraft = null; saveDraft();
+    reviewEdit = -1; rightTab = null; subTab = 0; pvTab = 0;
+    view = "wizard"; goRender();
+  };
+  document.getElementById("btn-baseline").onclick = () => { view = "baseline"; goRender(); };
+  app.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = () => { viewingReport = reports[Number(el.dataset.open)]; view = "report"; goRender(); };
+  });
+  app.querySelectorAll("[data-fu]").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      followupReport = reports[Number(el.dataset.fu)];
+      fuVals = {}; fuSummary = "";
+      view = "followup"; goRender();
+    };
+  });
+  app.querySelectorAll("[data-editrep]").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      startEditReport(reports[Number(el.dataset.editrep)]);
+    };
+  });
+  app.querySelectorAll("[data-del]").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      if (!confirm("确定删除这份报告吗？此操作不可撤销。")) return;
+      reports.splice(Number(el.dataset.del), 1);
+      persistReports(); render();
+    };
+  });
+}
+
+/* ---------- 个人判断基准库（pv 判断基准，全局长期保存，编辑即存） ---------- */
+function renderBaseline() {
+  app.innerHTML =
+    '<div class="narrow">' +
+    '<div class="hero">' +
+      '<div class="kicker">长期保存 · 编辑即存</div>' +
+      '<h1>个人判断基准库</h1>' +
+      '<p>来自「内外视角校准」（《对赌（实践版）》第六章）——只需认真填写一次，长期保存；每次走内外视角模块时，第 1 步默认回顾这里的内容，可选择更新编辑。所有修改即时保存，并与独立的「观点跟踪」单文件工具共享。</p>' +
+      '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">' +
+        '<button class="btn secondary" id="btn-bback">← 返回首页</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="step-card"><div class="step-body">' +
+      renderFields(MOD_PV.fields("s1", baseline) || [], false, "base") +
+    '</div></div>' +
+    '</div>';
+  document.getElementById("btn-bback").onclick = () => { view = "home"; goRender(); };
+  bindFieldEvents(app);
+}
+
+/* 六步决策的决策分析页（sd_d{i}）把三个环节合并成一步：标题带上这条决策的实际内容，避免只显示“决策 1” */
+function stepTitleFor(modId, step, mv, maxLen) {
+  const base = (step && typeof step.title === "string") ? step.title : "";
+  if (modId !== "ss" || !base) return base;
+  const m = /^sd_d(\d+)$/.exec(String((step && step.id) || ""));
+  if (!m) return base;
+  const ds = decisionsOf(mv || {});
+  const d = ds[Number(m[1])];
+  const t = d ? String(d.t || "").trim() : "";
+  if (!t) return base;
+  return base + "：" + (maxLen ? trunc(t, maxLen) : t);
+}
+function ssStepTitle(entry, maxLen) {
+  if (!entry || entry.mod !== "ss") return "";
+  return stepTitleFor("ss", entry.step, ensureModScope("ss"), maxLen);
+}
+
+/* ---------- 向导 ---------- */
+function renderWizard() {
+  /* 每次渲染都把“本次决策”同步为候选列表第 1 条（决策 1）：刷新/回退/直接跳步都不会走失 */
+  syncDecisionText();
+  const entries = buildPath(values);
+  // 回退修改答案 / 回 s0 改勾选导致路径变化时，收敛越界的 cur
+  if (cur > entries.length - 1) cur = entries.length - 1;
+  if (cur < 0) cur = 0;
+  const entry = entries[cur];
+  /* 换模块时把内外视角的组页签复位到第 1 组（模块内切步骤时保留） */
+  if (entry.mod !== pvLastMod) { pvTab = 0; pvLastMod = entry.mod; }
+  if (entry.mod) applyPrefills(entry.mod);
+  /* 背景描述与决策速度的处境描述同源：补齐只填过一侧的情况（历史草稿、预填之后） */
+  syncBgText();
+  /* 内外视角 / 事前验尸的名字与描述与最初环节同源（仅在与其它工具同用时） */
+  syncPvText();
+  syncPmText();
+
+  /* 模块分组（连续同模块为一段），供 phase-bar 使用 */
+  const groups = [];
+  entries.forEach((e, i) => {
+    const key = e.mod || "s0";
+    const g = groups[groups.length - 1];
+    if (g && g.key === key) g.last = i;
+    else groups.push({ key: key, mod: e.mod, first: i, last: i });
+  });
+  const phaseChips = groups.map(g => {
+    const active = cur >= g.first && cur <= g.last;
+    const done = g.last < cur;
+    const color = g.mod ? MODS[g.mod].color : "#999590";
+    const style = active ? ' style="border-color:' + color + ';background:' + color + '14;"' : "";
+    return '<span class="phase-chip ' + (active ? "active" : (done ? "done" : "")) + '" data-goto="' + g.first + '"' + style + '>' +
+      '<span class="pdot" style="background:' + color + ';"></span>' + esc(g.mod ? MODS[g.mod].name : "起始") + (done ? " ✓" : "") + '</span>';
+  }).join("");
+
+  /* 下层步骤胶囊：只显示当前模块内的步骤（参照复盘工具箱两层步骤条） */
+  const curGroup = groups.find(g => cur >= g.first && cur <= g.last);
+  const chips = entries.slice(curGroup.first, curGroup.last + 1).map((e, li, arr) => {
+    const i = curGroup.first + li;
+    const cls = i === cur ? "active" : (i < cur ? "done" : "");
+    const numTxt = i < cur ? "✓" : String(li + 1);
+    let chip = '<span class="step-chip ' + cls + '" data-goto="' + i + '">' +
+      '<span class="num">' + numTxt + '</span>' + esc(ssStepTitle(e, 14) || e.step.title) + '</span>';
+    if (li < arr.length - 1) chip += '<span class="step-sep">›</span>';
+    return chip;
+  }).join("");
+
+  /* s0 之后至少还有一个模块步骤（门槛保证），s0 自身永远不是终点 */
+  const isLast = cur === entries.length - 1 && entry.mod !== null;
+  /* pm 模块的多轮循环：s5 选择修正/放弃且开启新一轮时，下一轮回到 pm 第 1 步 */
+  let loopNext = false;
+  if (entry.mod === "pm" && entry.step.id === "s5") {
+    const pmScope = resolveScope(scopeStrFor(entry), false);
+    loopNext = (pmScope.decision === "adjust" || pmScope.decision === "drop") && pmScope.new_round === "yes";
+  }
+  const okGate = gateOk(entry);
+  /* 六步决策的决策分析页：一个决策一页，上一步/下一步先在页内的三个环节之间走，走完才换决策 */
+  const isDecPage = entry.mod === "ss" && entry.step.base === "sd";
+  const phaseNext = isDecPage && subTab < SS_PHASES.length - 1;
+  const phasePrev = isDecPage && subTab > 0;
+  /* 内外视角：观点追踪有多组时，上一步/下一步先在本环节内走完各组（与决策分析页的环节页签同理） */
+  let pvGrpNext = false, pvGrpPrev = false, pvGrpNextName = "", pvGrpPrevName = "";
+  if (entry.mod === "pv") {
+    const gs = pvVtGroups(pvNorm(ensureModScope("pv")));
+    if (gs.length > 1) {
+      pvGrpNext = pvTab < gs.length - 1;
+      pvGrpPrev = pvTab > 0;
+      if (pvGrpNext) pvGrpNextName = pvGroupName(gs[pvTab + 1], pvTab + 1);
+      if (pvGrpPrev) pvGrpPrevName = pvGroupName(gs[pvTab - 1], pvTab - 1);
+    }
+  }
+  const prevLabel = phasePrev ? "← 上一环节：" + SS_PHASES[subTab - 1]
+    : (pvGrpPrev ? "← 上一组：" + pvGrpPrevName : "← 上一步");
+  const nextLabel = phaseNext ? "下一环节：" + SS_PHASES[subTab + 1] + " →"
+    : (pvGrpNext ? "下一组：" + pvGrpNextName + " →"
+      : (loopNext ? "开启新一轮 →" : (isLast ? "保存并生成报告" : "下一步 →")));
+  const navRow =
+    '<div class="nav-row">' +
+      (cur > 0 ? '<button class="btn secondary" id="btn-prev">' + esc(prevLabel) + '</button>' : '<button class="btn secondary" id="btn-home">← 返回首页</button>') +
+      '<span class="nav-note">' + (okGate ? "" : esc(gateHint(entry))) + '</span>' +
+      '<button class="btn" id="btn-next" ' + (okGate ? "" : "disabled") + '>' + esc(nextLabel) + '</button>' +
+    '</div>';
+
+  const scopeStr = scopeStrFor(entry);
+  const scopeVals = resolveScope(scopeStr, false);
+  const meta = stepMetaFor(entry, scopeVals);
+  const metaHtml = meta ? '<div class="meta-note">' + esc(meta) + '</div>' : "";
+  const modTag = entry.mod ? MODS[entry.mod].name + " · " : "";
+  const roundTag = (entry.mod === "pm" && pmRound > 0) ? "第 " + (pmRound + 1) + " 轮 · " : "";
+  const leftCard =
+    '<div class="step-card">' +
+      '<div class="step-head">' +
+        '<span class="tag">' + esc(modTag + roundTag) + '第 ' + (cur - curGroup.first + 1) + ' 步 · ' + esc(entry.step.tag) + '</span>' +
+        '<h2>' + esc(ssStepTitle(entry) || entry.step.title) + '</h2>' +
+      '</div>' +
+      '<div class="step-body">' + metaHtml + stepBody(entry, false, scopeStr, true) + navRow + '</div>' +
+    '</div>';
+
+  /* 右栏（辅助信息框）：内外视角模块带「回顾 / 判断基准」斜角页签切换，其余模块只有回顾 */
+  const navItems = [];
+  if (entry.mod === "pm") for (let r = 0; r < pmRound; r++) navItems.push({ kind: "round", idx: r });
+  for (let i = 0; i < cur; i++) navItems.push({ kind: "step", idx: i });
+  /* 判断基准只在首页「个人判断基准库」里维护，辅助栏不再重复一个入口 */
+  /* 判断基准也是回顾序列里的一页：排在内外视角那一段的最前面，还没走到内外视角时排在末尾 */
+  const pvAt = navItems.findIndex(it => it.kind === "step" && entries[it.idx] && entries[it.idx].mod === "pv");
+  const baseAt = pvAt >= 0 ? pvAt : (entry.mod === "pv" ? navItems.length : -1);
+  if (baseAt >= 0) navItems.splice(baseAt, 0, { kind: "base" });
+  if (navItems.length && (rightTab == null || rightTab < 0 || rightTab > navItems.length - 1)) rightTab = navItems.length - 1;
+  /* 页签配色沿用阶段条上每个工具的配色（MODS[].color），起始为中性灰 */
+  const navGroups = [];
+  navItems.forEach((it, k) => {
+    const key = it.kind === "round" ? "pmRounds" : (it.kind === "base" ? "pv" : ((entries[it.idx] && entries[it.idx].mod) || "s0"));
+    const prev = navGroups[navGroups.length - 1];
+    if (prev && prev.key === key) { prev.last = k; return; }
+    navGroups.push({
+      key: key, first: k, last: k,
+      label: key === "pmRounds" ? "事前验尸 · 轮次" : (key === "s0" ? "起始" : MODS[key].name),
+      color: key === "s0" ? "#999590" : MODS[key === "pmRounds" ? "pm" : key].color
+    });
+  });
+  const toolRow = navGroups.length < 2 ? "" :
+    '<div class="aux-tabs tool">' + navGroups.map(g => {
+      const on = rightTab >= g.first && rightTab <= g.last;
+      return '<button type="button" class="aux-tab sub' + (on ? " on" : "") + '" data-rtjump="' + g.first + '"' +
+        ' style="border-color:' + g.color + ';color:' + g.color + ';background:' + (on ? "var(--surface)" : g.color + "14") + '">' +
+        '<span>' + esc(g.label) + '</span></button>';
+    }).join("") + '</div>';
+  let cards = "";
+  if (navItems.length) {
+    const it = navItems[rightTab];
+    let headTxt = "";
+    if (it.kind === "round") {
+      const rv0 = peekModScope(ensureModScope("pm"), it.idx);
+      headTxt = '第 ' + (it.idx + 1) + ' 轮记录 · ' + (String(rv0[MOD_PM.titleKey] || "").trim() || "未命名");
+    } else if (it.kind === "base") {
+      headTxt = "回顾 · 内外视角 · 判断基准";
+    } else {
+      const e2 = entries[it.idx];
+      headTxt = '回顾 · ' + (e2.mod ? MODS[e2.mod].name + " · " : "") + esc(ssStepTitle(e2) || e2.step.title);
+    }
+    const nav =
+      '<div class="rv-nav">' +
+        (navItems.length > 1 ? '<button class="rv-arrow" data-rtprev' + (rightTab <= 0 ? " disabled" : "") + '>‹</button>' : "") +
+        '<h3 style="flex:1;">' + headTxt + '（' + (rightTab + 1) + '/' + navItems.length + '）</h3>' +
+        (navItems.length > 1 ? '<button class="rv-arrow" data-rtnext' + (rightTab >= navItems.length - 1 ? " disabled" : "") + '>›</button>' : "") +
+      '</div>';
+    if (it.kind === "base") {
+      const editingBase = reviewEdit === "base";
+      cards =
+        '<div class="review-card">' +
+          '<div class="review-head">' + nav +
+            '<button class="btn-edit ' + (editingBase ? "on" : "") + '" data-review="base">' + (editingBase ? "完成" : "编辑") + '</button>' +
+          '</div>' +
+          '<div class="review-body' + (editingBase ? "" : " locked") + '">' +
+            '<div class="meta-note">判断基准是长期保存的辅助信息，不占流程步骤：这里的修改即时保存，与首页「个人判断基准库」是同一份。</div>' +
+            renderFields(MOD_PV.fields("s1", baseline) || [], !editingBase, "base") +
+          '</div>' +
+        '</div>';
+    } else if (it.kind === "round") {
+      /* pm 历史轮次：整轮只读回顾 */
+      const rv0 = peekModScope(ensureModScope("pm"), it.idx);
+      let recapBody = "";
+      MOD_PM.steps.forEach(st => {
+        const fs = (MOD_PM.fields(st.id, rv0) || []).filter(f => f.type !== "note" && f.key !== "new_round" && (!f.showIf || f.showIf(rv0)));
+        recapBody += '<div class="lr-step"><b>' + esc(st.title) + '</b>' + fs.map(f => renderRV(f, rv0)).join("") + '</div>';
+      });
+      cards =
+        '<div class="review-card">' +
+          '<div class="review-head">' + nav + '</div>' +
+          '<div class="review-body locked">' + recapBody + '</div>' +
+        '</div>';
+    } else {
+      const i = it.idx;
+      const e2 = entries[i];
+      const editing = reviewEdit === i;
+      const rScopeStr = scopeStrFor(e2);
+      const rScope = resolveScope(rScopeStr, false);
+      const rMeta = stepMetaFor(e2, rScope);
+      cards =
+        '<div class="review-card">' +
+          '<div class="review-head">' + nav +
+            '<button class="btn-edit ' + (editing ? "on" : "") + '" data-review="' + i + '">' + (editing ? "完成" : "编辑") + '</button>' +
+          '</div>' +
+          '<div class="review-body' + (editing ? "" : " locked") + '">' + (rMeta ? '<div class="meta-note">' + esc(rMeta) + '</div>' : "") + stepBody(e2, !editing, rScopeStr, false) + '</div>' +
+        '</div>';
+    }
+  }
+  const rightCol = cards ? '<div class="review-col">' + toolRow + cards + '</div>' : "";
+
+  app.innerHTML =
+    (editingReport
+      ? '<div class="edit-bar">正在编辑已保存的报告「' + esc(editingReport.title || "未命名") + '」——保存后更新这一份，不会新增。<button type="button" class="btn-edit" id="btn-cancel-edit">放弃编辑</button></div>'
+      : "") +
+    '<div class="phase-bar">' + phaseChips + '</div>' +
+    '<div class="stepper">' + chips + '</div>' +
+    (rightCol ? '<div class="split">' + leftCard + rightCol + '</div>' : leftCard);
+
+  bindFieldEvents(app);
+  const cancelEdit = document.getElementById("btn-cancel-edit");
+  if (cancelEdit) cancelEdit.onclick = cancelEditReport;
+  app.querySelectorAll("[data-rtjump]").forEach(el => {
+    el.onclick = () => { rightTab = Number(el.dataset.rtjump); reviewEdit = -1; render(); };
+  });
+  app.querySelectorAll("[data-goto]").forEach(el => {
+    el.onclick = () => { cur = Number(el.dataset.goto); reviewEdit = -1; rightTab = null; subTab = 0; pvTab = 0; saveDraft(); goRender(); };
+  });
+  app.querySelectorAll("[data-review]").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.review === "base" ? "base" : Number(el.dataset.review);
+      reviewEdit = (reviewEdit === k) ? -1 : k;
+      render();
+    };
+  });
+  app.querySelectorAll("[data-rtprev]").forEach(el => {
+    el.onclick = () => { rightTab = Math.max(0, rightTab - 1); reviewEdit = -1; render(); };
+  });
+  app.querySelectorAll("[data-rtnext]").forEach(el => {
+    el.onclick = () => { rightTab = rightTab + 1; reviewEdit = -1; render(); };
+  });
+  const prev = document.getElementById("btn-prev");
+  if (prev) prev.onclick = () => {
+    if (phasePrev) { subTab--; saveDraft(); goRender(); return; }
+    if (pvGrpPrev) { pvTab--; reviewEdit = -1; saveDraft(); goRender(); return; }
+    /* 换环节：内外视角的组从第 1 组重新开始（组内逐组走只发生在同一环节内） */
+    cur--; reviewEdit = -1; rightTab = null; subTab = 0; pvTab = 0; saveDraft(); goRender();
+  };
+  const home = document.getElementById("btn-home");
+  if (home) home.onclick = () => { view = "home"; goRender(); };
+  document.getElementById("btn-next").onclick = () => {
+    if (phaseNext) { subTab++; saveDraft(); goRender(); }
+    else if (pvGrpNext) { pvTab++; reviewEdit = -1; saveDraft(); goRender(); }
+    else if (loopNext) {
+      pmRound++;
+      resolveScope("m:pm@" + pmRound, true);
+      /* 跳回事前验尸模块的第 1 步 */
+      const pmFirst = entries.findIndex(e => e.mod === "pm");
+      cur = pmFirst >= 0 ? pmFirst : 0;
+      reviewEdit = -1; rightTab = null; subTab = 0;
+      saveDraft(); goRender();
+    }
+    else if (isLast) finishReport();
+    /* 换环节：内外视角的组从第 1 组重新开始（组内逐组走只发生在同一环节内） */
+    else { cur++; reviewEdit = -1; rightTab = null; subTab = 0; pvTab = 0; saveDraft(); goRender(); }
+  };
+}
+
+/* ---------- 步骤主体 ---------- */
+function stepBody(entry, locked, scopeStr, isMain) {
+  const scope = resolveScope(scopeStr, false);
+  /* 从最初环节带入、不需重复填写的字段：向导里不展示（报告里照常收录） */
+  let fs = fieldsForEntry(entry, scope).filter(f => !f.wizHide);
+  /* ss 决策分析页：外层环节页签（subTab）。只作用于主编辑区；右侧回顾卡不套页签，整页展开便于回看 */
+  if (entry.mod === "ss" && entry.step.base === "sd" && entry.step.di != null && isMain) {
+    fs = fs.filter(f => f.pg == null || f.pg === subTab);
+  }
+  /* 内外视角：多组观点追踪用顶部页签切换，主编辑区与右侧回顾卡都只显示当前组（页签控件在回顾里仍可用） */
+  if (entry.mod === "pv") {
+    const n = pvVtGroups(pvNorm(resolveScope(scopeStr, false))).length;
+    if (pvTab > n - 1) pvTab = Math.max(0, n - 1);
+    if (pvTab < 0) pvTab = 0;
+    fs = fs.filter(f => !f.whenActive || f.gi === pvTab);
+  }
+  /* 右侧回顾卡整页展开（不套页签），页签控件在回顾里没有意义 */
+  if (!isMain) fs = fs.filter(f => f.type !== "ptabs");
+  return renderFields(fs, locked, scopeStr);
+}
+
+/* ---------- 字段渲染（half 半栏分组移植自 six-step） ---------- */
+function renderFields(fields, locked, scopeStr) {
+  const scope = resolveScope(scopeStr, false);
+  let html = "";
+  let buf = [];
+  const flush = () => {
+    if (buf.length) { html += '<div class="half-row">' + buf.join("") + '</div>'; buf = []; }
+  };
+  fields.forEach(f => {
+    if (f.showIf && !f.showIf(scope)) return;
+    if (f.half) { buf.push(renderField(f, locked, scopeStr)); if (buf.length === 2) flush(); return; }
+    flush();
+    html += renderField(f, locked, scopeStr);
+  });
+  flush();
+  return html;
+}
+
+/* checklist 行收集：可选 lead 指定的单值字段排在最前，其后是各 sources 列表 */
+function collectRows(f, v) {
+  let rows = [];
+  if (f.lead && String(v[f.lead] || "").trim()) rows.push({ t: String(v[f.lead]).trim() });
+  return rows.concat((f.sources || []).reduce((acc, k) => acc.concat((Array.isArray(v[k]) ? v[k] : []).filter(x => (x.t || "").trim())), []));
+}
+
+function renderField(f, locked, scopeStr) {
+  /* grp 字段（内外视角的多组观点 / 多组校准）：读写落在对应组的数据对象上，
+   * data-scope 仍写模块作用域，事件层用 data-grp/data-gi 找回落点 */
+  const scope = f.grp ? pvGroupObj(resolveScope(scopeStr, false), f.grp, f.gi, false) : resolveScope(scopeStr, false);
+  if (f.showIf && !f.showIf(scope)) return "";
+  const lk = (locked || f.ro) ? " locked" : "";
+  const dis = (locked || f.ro) ? " disabled" : "";
+  const ds = ' data-scope="' + scopeStr + '"' + (f.grp ? ' data-grp="' + f.grp + '" data-gi="' + f.gi + '"' : "");
+  const radioName = f.key ? f.key + "__" + String(scopeStr).replace(/[^a-zA-Z0-9]/g, "_") : "";
+  const v = f.key != null ? scope[f.key] : null;
+  let body = "";
+  if (f.type === "modpick") {
+    /* s0 专用：两个互斥的选择区——
+     * 默认流程（推荐：没完整读过这本书）单独置顶一行；自选组合在分隔线下方。
+     * 选中默认流程 → 工具区整体变灰不可点；勾选任一工具 → 默认流程区变灰。 */
+    const mode = values.flowmode === "default" ? "default" : (selOf(values).length ? "custom" : "none");
+    const sel = selOf(values);
+    const defOn = mode === "default";
+    const toolsHtml = '<div class="mp-grid">' + MODULE_LIST.map(m => {
+      const on = mode === "custom" && sel.indexOf(m.id) >= 0;
+      return '<div class="mp-card' + (on ? " on" : "") + lk + '" data-mp="' + m.id + '">' +
+        '<div class="mp-top"><span class="mp-check">' + (on ? "✔" : "") + '</span>' +
+          '<span class="mp-name">' + esc(m.name) + '</span></div>' +
+        '<div class="mp-src">' + esc(m.src) + '</div>' +
+        '<div class="mp-desc">' + esc(m.desc) + '</div>' +
+      '</div>';
+    }).join("") + '</div>';
+    const selListHtml = (mode === "custom" && sel.length)
+      ? '<div class="sel-list">' + sel.map((mid, i) =>
+          '<div class="sel-row' + lk + '"' + (locked ? "" : ' data-drop-lk="sel" data-ri="' + i + '"' + ds) + '>' +
+            (locked
+              ? '<span class="sel-drag off">⠿</span>'
+              : '<span class="sel-drag" draggable="true" data-drag-lk="sel" data-ri="' + i + '"' + ds + ' title="拖动调整执行顺序">⠿</span>') +
+            '<span class="sel-ord">' + (i + 1) + '</span>' +
+            '<span class="sel-name">' + esc(MODS[mid].name) + '</span>' +
+          '</div>').join("") + '</div>'
+      : "";
+    body =
+      '<div class="mp-zone' + (mode === "custom" ? " dimmed" : "") + '">' +
+        '<div class="mp-card mp-default' + (defOn ? " on" : "") + lk + '" data-mpdefault="1">' +
+          '<div class="mp-top"><span class="mp-check">' + (defOn ? "✔" : "") + '</span>' +
+            '<span class="mp-name">使用默认流程</span><span class="mp-rec">推荐 · 没完整读过这本书</span></div>' +
+          '<div class="mp-src">决策速度 → 六步决策 → 内外视角 → 事前验尸</div>' +
+          '<div class="mp-desc">跟着书里的完整流程走一遍：先判断这个决策该快还是该慢，再用完整工具箱把大决策做扎实，每一步都有引导。</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mp-divider"><span>或者：自己组合要用的工具（读过这本书、知道要用哪个）</span></div>' +
+      '<div class="mp-zone' + (mode === "default" ? " dimmed" : "") + '">' +
+        toolsHtml + selListHtml +
+      '</div>';
+  } else if (f.type === "text") {
+    const tv = (typeof f.value === "function") ? f.value(scope) : v;
+    body = '<input type="text" data-k="' + f.key + '"' + ds + dis + ' value="' + esc(tv == null ? "" : tv) + '" placeholder="' + esc(f.placeholder || "") + '">';
+  } else if (f.type === "textarea") {
+    body = '<textarea data-k="' + f.key + '"' + ds + ' rows="3"' + dis + ' placeholder="' + esc(f.placeholder || "") + '">' + esc(v || "") + '</textarea>';
+  } else if (f.type === "radio") {
+    body = '<div class="radio-group' + (f.inline ? " inline" : "") + lk + '">' + f.options.map(op =>
+      '<label class="radio-option ' + (v === op[0] ? "checked" : "") + lk + '">' +
+        '<input type="radio" name="' + radioName + '" data-k="' + f.key + '"' + ds + ' value="' + op[0] + '" ' + (v === op[0] ? "checked" : "") + dis + '>' +
+        '<span>' + esc(op[1]) + (op[2] ? '<span class="opt-desc">' + esc(op[2]) + '</span>' : "") + '</span>' +
+      '</label>').join("") + '</div>';
+  } else if (f.type === "checks") {
+    /* 多选（选项带说明）：点整行切换勾选，值存成 { d0: "yes", … } */
+    const on = (v && typeof v === "object") ? v : (typeof v === "string" && v ? { [v]: "yes" } : {});
+    body = '<div class="radio-group">' + f.options.map(op => {
+      const hit = on[op[0]] === "yes";
+      return '<div class="radio-option ' + (hit ? "checked" : "") + lk + '" data-mcheck="' + f.key + '" data-mv="' + op[0] + '"' + ds + '>' +
+        '<span class="sq-check' + (hit ? " checked" : "") + '">' + (hit ? "✔" : "") + '</span>' +
+        '<span>' + esc(op[1]) + (op[2] ? '<span class="opt-desc">' + esc(op[2]) + '</span>' : "") + '</span>' +
+      '</div>';
+    }).join("") + '</div>';
+  } else if (f.type === "score") {
+    body = '<div class="score-row' + lk + '">' +
+      '<span class="score-endlabel">低</span>' +
+      [0,1,2,3,4,5].map(n =>
+        '<button type="button" class="score-btn ' + (Number(v) === n ? "checked" : "") + '" data-score="' + f.key + '" data-val="' + n + '"' + ds + dis + '>' + n + '</button>'
+      ).join("") +
+      '<span class="score-endlabel right">高</span>' +
+    '</div>';
+  } else if (f.type === "list") {
+    const rows = Array.isArray(v) ? v : [];
+    const rowsHtml = rows.length === 0
+      ? (f.emptyHint ? '<div class="list-empty-hint">' + esc(f.emptyHint) + '</div>' : "")
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<span class="idx">' + (ri + 1) + '.</span>' +
+            '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t"' + ds + ' rows="1"' + dis + ' placeholder="' + esc(f.itemPlaceholder || "") + '">' + esc(row.t || "") + '</textarea>' +
+            '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '"' + ds + ' title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    body = rowsHtml +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '"' + ds + dis + '>＋ 添加一条</button>';
+  } else if (f.type === "chipslist") {
+    const rows = Array.isArray(v) ? v : [];
+    const rowsHtml = rows.length === 0
+      ? (f.emptyHint ? '<div class="list-empty-hint">' + esc(f.emptyHint) + '</div>' : "")
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<span class="idx">' + (ri + 1) + '.</span>' +
+            '<div class="grow" style="flex:1;display:flex;flex-direction:column;gap:8px;">' +
+              '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t"' + ds + ' rows="1"' + dis + ' placeholder="' + esc(f.itemPlaceholder || "") + '">' + esc(row.t || "") + '</textarea>' +
+              '<div class="row-cmp">' + f.chips.map(ch =>
+                '<span class="chip ' + (row.c === ch[0] ? "checked" : "") + '" data-chip-lk="' + f.key + '" data-ri="' + ri + '" data-chip="' + ch[0] + '"' + ds + dis + '>' + esc(ch[1]) + '</span>'
+              ).join("") + '</div>' +
+            '</div>' +
+            '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '"' + ds + ' title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    body = rowsHtml +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '"' + ds + dis + '>＋ 添加一条</button>';
+  } else if (f.type === "assess") {
+    const rows = f.sources.reduce((acc, k) => acc.concat((Array.isArray(scope[k]) ? scope[k] : []).filter(x => (x.t || "").trim())), []);
+    if (rows.length === 0) {
+      body = '<div class="field-hint">' + esc(f.emptyHint || "请先在前面填写对应的条目，这里会自动生成逐条评定。") + '</div>';
+    } else {
+      const ans = v || {};
+      body = rows.map((row, ri) => {
+        const a = ans["i" + ri];
+        return '<div class="as-row' + lk + '">' +
+          '<div class="as-item">' + (ri + 1) + '. ' + esc(row.t || "") + '</div>' +
+          '<div class="as-btns">' +
+            f.options.map(op => {
+              const pickedCls = a === op[0] ? " " + op[2] : "";
+              return '<span class="as-btn' + pickedCls + '" data-assess="' + f.key + '" data-i="' + ri + '" data-v="' + op[0] + '"' + ds + dis + '>' + esc(op[1]) + '</span>';
+            }).join("") +
+          '</div>' +
+        '</div>';
+      }).join("");
+    }
+  } else if (f.type === "checklist") {
+    const rows = collectRows(f, scope);
+    if (rows.length === 0) {
+      body = '<div class="field-hint">' + esc(f.emptyHint || "请先在前面填写对应的条目，这里会自动生成逐条勾选。") + '</div>';
+    } else {
+      const ans = v || {};
+      body = '<div class="cl-list">' + rows.map((row, ri) => {
+        const on = !!ans["i" + ri];
+        return '<div class="cl-row' + lk + '">' +
+          '<span class="cl-item">' + (ri + 1) + '. ' + esc(row.t || "") + '</span>' +
+          '<button type="button" class="sq-check' + (on ? " checked" : "") + '" data-check="' + f.key + '" data-i="' + ri + '"' + ds + dis + ' title="满意就打勾">' + (on ? "✔" : "") + '</button>' +
+        '</div>';
+      }).join("") + '</div>';
+    }
+  } else if (f.type === "triplist") {
+    const rows = Array.isArray(v) ? v : [];
+    const colPh = kk => { const c = (f.cols || []).find(x => x[0] === kk); return c ? c[1] : ""; };
+    const rowsHtml = rows.length === 0
+      ? (f.emptyHint ? '<div class="list-empty-hint">' + esc(f.emptyHint) + '</div>' : "")
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<span class="idx">' + (ri + 1) + '.</span>' +
+            '<div class="grow" style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0;">' +
+              '<input type="text" data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="a"' + ds + dis + ' value="' + esc(row.a || "") + '" placeholder="' + esc(colPh("a")) + '">' +
+              '<div class="tri-sub">' +
+                '<input type="text" data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="b"' + ds + dis + ' value="' + esc(row.b || "") + '" placeholder="' + esc(colPh("b")) + '">' +
+                '<input type="text" data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="c"' + ds + dis + ' value="' + esc(row.c || "") + '" placeholder="' + esc(colPh("c")) + '">' +
+              '</div>' +
+            '</div>' +
+            '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '"' + ds + ' title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    body = rowsHtml +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '"' + ds + dis + '>＋ 添加一条</button>';
+  } else if (f.type === "pvtabs") {
+    /* 内外视角的多组页签：切换当前组（增删组在组卡片里，页签只负责切换） */
+    const mv = resolveScope(scopeStr, true);
+    pvNorm(mv);
+    const groups = f.kind === "cal" ? mv.cal_groups : mv.vt_groups;
+    if (groups.length < 2) return "";
+    const tabs = groups.map((g, i) =>
+      '<button type="button" class="otab' + (i === pvTab ? " active" : "") + '" data-pvtab="' + i + '"' + ds + '>' +
+      esc(pvGroupName(mv.vt_groups[i], i)) + '</button>').join("");
+    return '<div class="field' + lk + '">' +
+      (f.label ? '<label class="field-label">' + esc(f.label) + '</label>' : "") +
+      '<div class="pv-grp-bar">' + tabs + '</div>' +
+    '</div>';
+  } else if (f.type === "vtgroup") {
+    /* 简约卡片：卡头 = 组名输入 + × 删除本组；卡内 = 外/内双栏；卡下 = 整条「添加一组」 */
+    const head = '<div class="vt-group-head">' +
+      '<input type="text" class="vt-group-name" data-k="name"' + ds + dis + ' value="' + esc(scope.name || "") + '" placeholder="给这组观点追踪起个名，如：请教了同事 / 行业基准">' +
+      (locked ? "" : '<button type="button" class="row-remove" data-pvrmgroup="1"' + ds + ' title="删除本组">×</button>') +
+    '</div>';
+    const inner = renderField({ type: "viewtrack", key: "vt", grp: f.grp, gi: f.gi, bare: true }, locked, scopeStr);
+    return '<div class="vt-group' + lk + '">' + head + inner + '</div>' +
+      (locked ? "" : '<button type="button" class="list-add" data-pvaddgroup="1"' + ds + '>＋ 添加一组观点追踪</button>');
+  } else if (f.type === "calgroup") {
+    /* 校准与结论：与观点追踪逐组对应的卡片（卡头写明是哪一组的校准） */
+    const mv = resolveScope(scopeStr, false);
+    const inner = (f.subs || []).map(sf => renderField(sf, locked, scopeStr)).join("");
+    return '<div class="vt-group' + lk + '">' +
+      '<div class="bs-cap">' + esc(pvGroupName((mv.vt_groups || [])[f.gi], f.gi)) + '</div>' +
+      inner +
+    '</div>';
+  } else if (f.type === "viewtrack") {
+    const col = (key, cls, title, hint, ph) => {
+      const rows = Array.isArray(scope[key]) ? scope[key] : [];
+      const rowsHtml = rows.length === 0
+        ? '<div class="list-empty-hint">点击下方按钮添加一条</div>'
+        : '<div class="list-rows">' + rows.map((row, ri) =>
+            '<div class="list-row">' +
+              '<span class="idx">' + (ri + 1) + '.</span>' +
+              '<textarea data-lk="' + key + '" data-ri="' + ri + '" data-rk="t"' + ds + ' rows="2"' + dis + ' placeholder="' + esc(ph) + '">' + esc(row.t || "") + '</textarea>' +
+              '<button type="button" class="row-remove" data-rmrow="' + key + '" data-ri="' + ri + '"' + ds + ' title="删除本条"' + dis + '>×</button>' +
+            '</div>').join("") + '</div>';
+      return '<div class="vt-col ' + cls + '">' +
+        '<h4>' + esc(title) + '</h4>' +
+        '<div class="vt-hint">' + esc(hint) + '</div>' +
+        rowsHtml +
+        '<button type="button" class="list-add" data-addrow="' + key + '"' + ds + dis + '>＋ 添加一条</button>' +
+      '</div>';
+    };
+    const grid = '<div class="vt-grid">' +
+        col("outside_views", "vt-outside", "外视角", "尽可能从旁观者的角度描述你的处境", "例：如果朋友遇到同样的问题，我会劝他……；同类情况的基准数是……") +
+        col("inside_views", "vt-inside", "内视角", "尽可能从自己的角度描述你的处境", "例：从我的经历来看，我觉得……") +
+      '</div>';
+    if (f.bare) return grid;
+    return '<div class="field' + lk + '">' +
+      '<div class="vt-title">观点跟踪</div>' + grid +
+    '</div>';
+  } else if (f.type === "pcttable") {
+    const groups = f.groups || [];
+    const anyRows = groups.some(g =>
+      (Array.isArray(scope[g.fail]) && scope[g.fail].some(x => (x.t || "").trim())) ||
+      (Array.isArray(scope[g.succ]) && scope[g.succ].some(x => (x.t || "").trim())));
+    if (!anyRows) {
+      return '<div class="field' + lk + '"><div class="dt-title">决策表</div><div class="field-hint">' + esc(f.emptyHint || "请先在前面填写原因。") + '</div></div>';
+    }
+    const table = (srcKey, headTxt) => {
+      const rows = Array.isArray(scope[srcKey]) ? scope[srcKey] : [];
+      let n = 0;
+      const rowsHtml = rows.map((row, ri) => {
+        if (!(row.t || "").trim()) return "";
+        n++;
+        return '<div class="dt-row">' +
+          '<div class="dt-reason"><span class="idx">' + n + '.</span><span>' + esc(row.t) + '</span></div>' +
+          '<div class="dt-pct"><input type="text" inputmode="numeric" data-lk="' + srcKey + '" data-ri="' + ri + '" data-rk="p"' + ds + dis + ' value="' + esc(row.p || "") + '" placeholder="%"></div>' +
+        '</div>';
+      }).join("");
+      return '<div class="dt-table">' +
+        '<div class="dt-thead"><span>' + esc(headTxt) + '</span><span>%</span></div>' +
+        (rowsHtml || '<div class="dt-empty">（此类暂未填写）</div>') +
+      '</div>';
+    };
+    body = groups.map(g =>
+      '<div class="dt-group">' +
+        '<div class="dt-glabel">' + esc(g.label) + '</div>' +
+        table(g.fail, '失败（“事前验尸”）') +
+        table(g.succ, '成功（倒推）') +
+      '</div>'
+    ).join("");
+    return '<div class="field' + lk + '"><div class="dt-title">决策表</div>' + body + '</div>';
+  } else if (f.type === "strattable") {
+    const rows = Array.isArray(scope[f.source]) ? scope[f.source] : [];
+    let n = 0;
+    const rowsHtml = rows.map((row, ri) => {
+      if (!(row.t || "").trim()) return "";
+      n++;
+      const pct = fmtPct(row.p);
+      return '<div class="st-row">' +
+        '<div class="st-reason"><span class="idx">' + n + '.</span><span style="flex:1;min-width:0;">' + esc(row.t) + '</span>' +
+          '<span class="st-pctbadge' + (pct ? "" : " none") + '">' + (pct ? esc(pct) : "未评估") + '</span></div>' +
+        '<div class="st-input"><textarea data-lk="' + f.source + '" data-ri="' + ri + '" data-rk="' + f.rk + '"' + ds + ' rows="1"' + dis + ' placeholder="' + esc(f.placeholder || "") + '">' + esc(row[f.rk] || "") + '</textarea></div>' +
+      '</div>';
+    }).join("");
+    body = '<div class="st-table">' +
+      '<div class="st-thead"><div class="st-h-reason" style="flex:0 0 50%;">' + esc(f.headLeft || "原因") + '</div><div class="st-h-input" style="flex:0 0 50%;">' + esc(f.headRight || "策略") + '</div></div>' +
+      (rowsHtml || '<div class="st-empty">' + esc(f.emptyHint || "（暂无条目）") + '</div>') +
+    '</div>';
+  } else if (f.type === "otree") {
+    const rows = Array.isArray(v) ? v : [];
+    const branchRows = rows.map((row, ri) =>
+      '<div class="dt-branch"' + (locked ? "" : ' data-drop-lk="' + f.key + '" data-ri="' + ri + '"' + ds) + '>' +
+        '<div class="dt-arrow">→</div>' +
+        '<div class="dt-branch-body">' +
+          '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t"' + ds + ' rows="1"' + dis + ' placeholder="写一个潜在结果">' + esc(row.t || "") + '</textarea>' +
+        '</div>' +
+        (locked ? "" : '<span class="dt-drag" draggable="true" data-drag-lk="' + f.key + '" data-ri="' + ri + '"' + ds + ' title="拖动排序：从上到下是你更偏好的结果">⠿</span>') +
+        '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '"' + ds + ' title="删除本条"' + dis + '>×</button>' +
+      '</div>').join("");
+    body =
+      '<div class="dt-branches"><div class="dt-branch-head">潜在结果</div>' +
+        '<div class="dt-sorthint">从上到下 = 你更偏好的结果，拖动 ⠿ 手柄排序</div>' +
+        branchRows +
+        '<button type="button" class="list-add" data-addrow="' + f.key + '"' + ds + dis + '>＋ 添加一条潜在结果</button>' +
+      '</div>';
+    return '<div class="field' + lk + '">' + body + '</div>';
+  } else if (f.type === "pctrows") {
+    /* ss「评估概率」：一行一个结果，结果名 + 概率输入（解释这些概率的三个问题作为普通字段排在后面） */
+    const rows = Array.isArray(scope[f.source]) ? scope[f.source] : [];
+    if (!rows.some(x => (x.t || "").trim())) return "";
+    let n = 0;
+    const body = rows.map((row, j) => {
+      if (!(row.t || "").trim()) return "";
+      n++;
+      const k = f.prefix + j;
+      return '<div class="dt-row">' +
+          '<div class="dt-reason"><span class="idx">' + n + '.</span><span style="flex:1;min-width:0;">' + esc(row.t) + '</span></div>' +
+          '<div class="dt-pct"><input type="text" inputmode="numeric" data-k="' + k + '" data-digits="1"' + ds + dis + ' value="' + esc(scope[k] == null ? "" : scope[k]) + '" placeholder="%"></div>' +
+        '</div>';
+    }).join("");
+    return '<div class="field' + lk + '">' +
+      '<div class="dt-table">' +
+        '<div class="dt-thead"><span>' + esc(f.headLeft || "潜在结果") + '</span><span>%</span></div>' + body +
+      '</div>' +
+      (locked ? "" : '<div class="field-hint">概率只填数字（如 40，% 会自动加上）。</div>') +
+    '</div>';
+  } else if (f.type === "ptabs") {
+    /* ss 决策分析页内「可能结果 / 评估概率 / 组内比较」三个环节的页签 */
+    const tabs = (f.labels || []).map((t, ti) =>
+      '<button type="button" class="otab' + (ti === subTab ? " active" : "") + '" data-ptab="' + ti + '"' + dis + '>' + esc(t || "（未填写）") + '</button>').join("");
+    return '<div class="field' + lk + '">' + (f.label ? '<label class="field-label">' + esc(f.label) + '</label>' : "") +
+      '<div class="otabs">' + tabs + '</div></div>';
+  } else if (f.type === "sumlist") {
+    /* 偏好排序 × 概率回顾：source 列表的顺序即偏好顺序，概率取自 probPrefix+序号 */
+    const rows = (Array.isArray(scope[f.source]) ? scope[f.source] : []).filter(x => (x.t || "").trim());
+    if (!rows.length) return "";
+    const items = rows.map((row, j) => {
+      const p = String(scope[f.probPrefix + j] == null ? "" : scope[f.probPrefix + j]).trim().replace(/%$/, "");
+      return '<div class="sum-row">' +
+          '<span class="sum-rank">' + (j + 1) + '</span>' +
+          '<span class="sum-text">' + esc(row.t || "") + '</span>' +
+          '<span class="sum-prob' + (p ? "" : " none") + '">' + (p ? "估计概率 " + esc(p) + "%" : "概率未评估") + '</span>' +
+        '</div>';
+    }).join("");
+    return '<div class="field' + lk + '"><label class="field-label">' + esc(f.label) + '</label><div class="sum-list">' + items + '</div></div>';
+  } else if (f.type === "note") {
+    const noteText = typeof f.text === "function" ? f.text(scope) : (f.text || "");
+    return '<div class="field' + lk + (f.half ? " half" : "") + '"><label class="field-label">' + esc(f.label) + '</label><div class="meta-note">' + esc(noteText) + '</div></div>';
+  }
+  const hint = f.hint ? '<div class="field-hint">' + esc(f.hint) + '</div>' : "";
+  const halfCls = f.half ? " half" : "";
+  return '<div class="field' + lk + halfCls + '"><label class="field-label">' + esc(f.label) + '</label>' + body + hint + '</div>';
+}
+
+/* ---------- 字段事件（读写按 data-scope 落在对应模块作用域） ---------- */
+function bindFieldEvents(root) {
+  const scopeOf = el => resolveScope(el.dataset.scope || "root", true);
+  /* 内外视角的多组字段：带 data-grp/data-gi 的元素读到写落在该组的数据对象上 */
+  const editTarget = el => el.dataset.grp
+    ? pvGroupObj(resolveScope(el.dataset.scope || "m:pv", true), el.dataset.grp, Number(el.dataset.gi), true)
+    : scopeOf(el);
+
+  root.querySelectorAll("input[data-k], textarea[data-k]").forEach(el => {
+    el.addEventListener("input", () => {
+      const scopeStr = el.dataset.scope || "root";
+      /* 概率格统一只存数字，% 由显示层补 */
+      editTarget(el)[el.dataset.k] = el.dataset.digits ? el.value.replace(/[^\d.]/g, "") : el.value;
+      persistScope(scopeStr);
+      /* 本次决策 / 背景描述：双向同步（决策速度 / 六步决策 共用同一份文本） */
+      syncRootKeyToDerived(el.dataset.k);
+      syncDerivedKey(el.dataset.k, scopeStr, el.value);
+      mirrorTwinEl(root, el.dataset.k, scopeStr, el.value);
+      if (el.tagName === "TEXTAREA") growEl(el);
+      refreshNavGate();
+    });
+  });
+
+  root.querySelectorAll('input[type="radio"]').forEach(el => {
+    el.addEventListener("change", () => {
+      scopeOf(el)[el.dataset.k] = el.value;
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    });
+  });
+
+  root.querySelectorAll(".score-btn").forEach(el => {
+    el.onclick = () => {
+      const sc = scopeOf(el);
+      const k = el.dataset.score;
+      sc[k] = (sc[k] === el.dataset.val) ? "" : el.dataset.val;
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    };
+  });
+
+  root.querySelectorAll(".as-btn").forEach(el => {
+    el.onclick = () => {
+      const sc = scopeOf(el);
+      const k = el.dataset.assess;
+      if (!sc[k]) sc[k] = {};
+      const cur0 = sc[k]["i" + el.dataset.i];
+      sc[k]["i" + el.dataset.i] = (cur0 === el.dataset.v) ? "" : el.dataset.v;
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    };
+  });
+
+  /* 多选行（最终选择等）：整行可点，切换勾选 */
+  root.querySelectorAll("[data-mcheck]").forEach(el => {
+    el.onclick = () => {
+      const sc = scopeOf(el);
+      const k = el.dataset.mcheck, mv = el.dataset.mv;
+      if (!sc[k] || typeof sc[k] !== "object") sc[k] = (typeof sc[k] === "string" && sc[k]) ? { [sc[k]]: "yes" } : {};
+      if (sc[k][mv] === "yes") delete sc[k][mv]; else sc[k][mv] = "yes";
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    };
+  });
+  root.querySelectorAll(".sq-check[data-check]").forEach(el => {
+    el.onclick = () => {
+      const sc = scopeOf(el);
+      const k = el.dataset.check;
+      if (!sc[k]) sc[k] = {};
+      const key = "i" + el.dataset.i;
+      sc[k][key] = sc[k][key] ? "" : "yes";
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    };
+  });
+
+  root.querySelectorAll("[data-addrow]").forEach(el => {
+    el.onclick = () => {
+      const sc = editTarget(el);
+      const k = el.dataset.addrow;
+      if (!Array.isArray(sc[k])) sc[k] = [];
+      sc[k].push({});
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("[data-rmrow]").forEach(el => {
+    el.onclick = () => {
+      const sc = editTarget(el);
+      const k = el.dataset.rmrow;
+      if (Array.isArray(sc[k])) sc[k].splice(Number(el.dataset.ri), 1);
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("textarea[data-lk], input[data-lk]").forEach(el => {
+    el.addEventListener("input", () => {
+      // 概率列统一只存数字，% 由显示层自动添加
+      const val = el.dataset.rk === "p" ? el.value.replace(/[^\d.]/g, "") : el.value;
+      editTarget(el)[el.dataset.lk][Number(el.dataset.ri)][el.dataset.rk] = val;
+      persistScope(el.dataset.scope || "root");
+      if (el.tagName === "TEXTAREA") growEl(el);
+      refreshNavGate();
+    });
+  });
+  root.querySelectorAll(".chip[data-chip-lk]").forEach(el => {
+    el.onclick = () => {
+      const row = scopeOf(el)[el.dataset.chipLk][Number(el.dataset.ri)];
+      row.c = (row.c === el.dataset.chip) ? "" : el.dataset.chip;
+      persistScope(el.dataset.scope || "root");
+      saveDraft(); render();
+    };
+  });
+
+  /* ss 决策分析页：环节页签（可能结果 / 评估概率 / 组内比较）；结果行内的“依据”展开 */
+  root.querySelectorAll("[data-ptab]").forEach(el => {
+    el.onclick = () => { subTab = Number(el.dataset.ptab); goRender(); };
+  });
+
+  /* 内外视角：多组观点追踪的页签切换与增删组（校准与结论按同一索引对齐） */
+  root.querySelectorAll("[data-pvtab]").forEach(el => {
+    el.onclick = () => { pvTab = Number(el.dataset.pvtab); reviewEdit = -1; goRender(); };
+  });
+  root.querySelectorAll("[data-pvaddgroup]").forEach(el => {
+    el.onclick = () => {
+      const mv = resolveScope(el.dataset.scope || "m:pv", true);
+      pvNorm(mv);
+      mv.vt_groups.push({ name: "", outside_views: [], inside_views: [] });
+      mv.cal_groups.push({});
+      pvTab = mv.vt_groups.length - 1;
+      saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("[data-pvrmgroup]").forEach(el => {
+    el.onclick = () => {
+      const mv = resolveScope(el.dataset.scope || "m:pv", true);
+      pvNorm(mv);
+      if (mv.vt_groups.length <= 1) return;
+      if (!window.confirm("删除当前这组观点追踪？这一组的外视角、内视角以及对应的校准与结论都会删除。")) return;
+      mv.vt_groups.splice(pvTab, 1);
+      mv.cal_groups.splice(pvTab, 1);
+      pvTab = Math.max(0, Math.min(pvTab, mv.vt_groups.length - 1));
+      saveDraft(); render();
+    };
+  });
+
+  /* 拖拽排序（ss otree 决策树分支 + s0 已选模块词条，同一套 HTML5 DnD 机制） */
+  root.querySelectorAll(".dt-drag, .sel-drag").forEach(el => {
+    el.addEventListener("dragstart", e => {
+      dndSrc = { scope: el.dataset.scope || "root", key: el.dataset.dragLk, ri: Number(el.dataset.ri) };
+      if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", "drag"); } catch (err) {} }
+      const br = el.closest(".dt-branch, .sel-row"); if (br) br.classList.add("dragging");
+    });
+    el.addEventListener("dragend", () => {
+      root.querySelectorAll(".dt-branch.dragging, .dt-branch.drag-over, .sel-row.dragging, .sel-row.drag-over").forEach(x => x.classList.remove("dragging", "drag-over"));
+      dndSrc = null;
+    });
+  });
+  root.querySelectorAll(".dt-branch[data-drop-lk], .sel-row[data-drop-lk]").forEach(row => {
+    row.addEventListener("dragover", e => {
+      if (!dndSrc || dndSrc.key !== row.dataset.dropLk || dndSrc.scope !== (row.dataset.scope || "root")) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      row.classList.add("drag-over");
+    });
+    row.addEventListener("dragleave", () => { row.classList.remove("drag-over"); });
+    row.addEventListener("drop", e => {
+      e.preventDefault();
+      if (!dndSrc || dndSrc.key !== row.dataset.dropLk || dndSrc.scope !== (row.dataset.scope || "root")) return;
+      const from = dndSrc.ri, to = Number(row.dataset.ri), scope = dndSrc.scope, key = dndSrc.key;
+      dndSrc = null;
+      moveRow(scope, key, from, to);
+      saveDraft(); render();
+    });
+  });
+
+  /* s0 模块勾选卡与默认流程卡（互斥两种模式）；未选模块数据保留不删 */
+  root.querySelectorAll("[data-mp]").forEach(el => {
+    el.onclick = () => { modpickToggle(el.dataset.mp); };
+  });
+  root.querySelectorAll("[data-mpdefault]").forEach(el => {
+    el.onclick = () => { modpickDefaultToggle(); };
+  });
+}
+
+/* 拖拽落点的数据变更（otree 分支与 s0 词条共用）：把 scope[key] 数组的 from 项移到 to */
+function moveRow(scopeStr, key, from, to) {
+  const arr = resolveScope(scopeStr, true)[key];
+  if (!Array.isArray(arr) || from === to || from < 0 || from >= arr.length || to < 0 || to >= arr.length) return false;
+  const item = arr.splice(from, 1)[0];
+  arr.splice(to, 0, item);
+  return true;
+}
+/* s0 自定义组合：点击模块卡勾选/取消；若当前是默认流程模式，退出默认、只勾选被点的这一张 */
+function modpickToggle(m) {
+  if (values.flowmode === "default") {
+    values.flowmode = "custom";
+    values.sel = [m];
+    saveDraft(); render();
+    return;
+  }
+  if (!Array.isArray(values.sel)) values.sel = [];
+  const i = values.sel.indexOf(m);
+  if (i >= 0) values.sel.splice(i, 1); else values.sel.push(m);
+  values.flowmode = "custom";
+  saveDraft(); render();
+}
+/* s0 默认流程卡：选中 = sel 固定为 dp→ss→pv→pm；再点一次取消，回到未选状态 */
+function modpickDefaultToggle() {
+  if (values.flowmode === "default") {
+    values.flowmode = "custom";
+    values.sel = [];
+  } else {
+    values.flowmode = "default";
+    values.sel = DEFAULT_SEL.slice();
+  }
+  saveDraft(); render();
+}
+
+/* ---------- 保存报告 ---------- */
+function cleanObj(o, skipKey) {
+  Object.keys(o).forEach(k => {
+    if (k === skipKey) return;
+    const arr = o[k];
+    if (Array.isArray(arr) && arr.length && arr.every(x => typeof x === "object" && x !== null)) {
+      o[k] = arr.filter(row => Object.values(row).some(val => val != null && val !== ""));
+    }
+  });
+}
+function cleanModValues(m, mv) {
+  const clean = JSON.parse(JSON.stringify(mv || {}));
+  if (m === "pm" && Array.isArray(clean._rounds)) {
+    clean._rounds.forEach(r => cleanObj(r));
+    clean._rounds = clean._rounds.filter(r => Object.values(r).some(val =>
+      val != null && val !== "" && !(Array.isArray(val) && val.length === 0)));
+    if (!clean._rounds.length) delete clean._rounds;
+  }
+  Object.keys(clean).forEach(k => { if (k.charAt(0) === "_" && k !== "_rounds") delete clean[k]; });
+  cleanObj(clean, "_rounds");
+  return clean;
+}
+function finishReport() {
+  /* 报告收纳所有有数据的模块（含中途取消勾选的模块），章节按 sel 顺序渲染 */
+  const cleanMods = {};
+  Object.keys(values.mods || {}).forEach(m => {
+    if (!MODS[m]) return;
+    const c = cleanModValues(m, values.mods[m]);
+    if (Object.keys(c).length) cleanMods[m] = c;
+  });
+  const title = String(values.title || "").trim() || "未命名";
+  const flowmode = values.flowmode === "default" ? "default" : "custom";
+  const sel = selOf(values);
+  /* 编辑已保存的报告：更新原报告（保留原保存时间，记下本次更新时间），不新增一份 */
+  if (editingReport) {
+    editingReport.title = title;
+    editingReport.flowmode = flowmode;
+    editingReport.sel = sel;
+    editingReport.mods = cleanMods;
+    editingReport.updated = new Date().toLocaleString("zh-CN");
+    persistReports();
+    restoreSuspendedDraft();
+    values = {};
+    pmRound = 0; cur = 0; rightTab = null; reviewEdit = -1; pvTab = 0;
+    viewingReport = editingReport;
+    editingReport = null;
+    view = "report";
+    goRender();
+    return;
+  }
+  const report = {
+    id: Date.now(),
+    date: new Date().toLocaleString("zh-CN"),
+    title: title,
+    flowmode: flowmode,
+    sel: sel,
+    mods: cleanMods
+  };
+  reports.unshift(report);
+  persistReports();
+  try { localStorage.removeItem(LS_DRAFT); } catch (e) {}
+  values = {};
+  pmRound = 0; cur = 0; rightTab = null; reviewEdit = -1; pvTab = 0;
+  viewingReport = report;
+  view = "report";
+  goRender();
+}
+
+/* ---------- 编辑已保存的报告：恢复成可编辑的向导会话，保存时更新原报告 ---------- */
+function startEditReport(r) {
+  if (!r) return;
+  /* 暂存当前草稿（可能是另一段没走完的决策），编辑结束或放弃时还原 */
+  suspendedDraft = (function () { try { return localStorage.getItem(LS_DRAFT); } catch (e) { return null; } })();
+  values = {
+    title: String(r.title || ""),
+    flowmode: r.flowmode === "default" ? "default" : "custom",
+    sel: Array.isArray(r.sel) ? r.sel.slice() : [],
+    mods: JSON.parse(JSON.stringify(r.mods || {}))
+  };
+  editingReport = r;
+  pmRound = (values.mods.pm && Array.isArray(values.mods.pm._rounds)) ? values.mods.pm._rounds.length : 0;
+  if (pmRound > 0) resolveScope("m:pm@" + pmRound, true);
+  cur = 0; reviewEdit = -1; rightTab = null; subTab = 0; pvTab = 0;
+  saveDraft();
+  view = "wizard";
+  goRender();
+}
+function cancelEditReport() {
+  const r = editingReport;
+  restoreSuspendedDraft();
+  editingReport = null;
+  values = {}; pmRound = 0; cur = 0; reviewEdit = -1; rightTab = null; pvTab = 0;
+  viewingReport = r || viewingReport;
+  view = viewingReport ? "report" : "home";
+  goRender();
+}
+function restoreSuspendedDraft() {
+  try {
+    if (suspendedDraft) localStorage.setItem(LS_DRAFT, suspendedDraft);
+    else localStorage.removeItem(LS_DRAFT);
+  } catch (e) {}
+  suspendedDraft = null;
+}
+
+/* ---------- 报告通用渲染件 ---------- */
+function rv(label, val) {
+  const has = val != null && val !== "" && !(Array.isArray(val) && val.length === 0);
+  const body = !has
+    ? '<div class="rv-value empty">（未填写）</div>'
+    : Array.isArray(val)
+      ? '<ul class="rv-list">' + val.map(x => '<li>' + rvItemText(x) + '</li>').join("") + '</ul>'
+      : '<div class="rv-value">' + esc(val) + '</div>';
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+function rvItemText(x) {
+  if (typeof x === "object") {
+    const chipMap = f_chipMap || {};
+    const chipLabel = x.c && chipMap[x.c] ? "（" + chipMap[x.c] + "）" : "";
+    return esc((x.t || "") + chipLabel);
+  }
+  return esc(x);
+}
+let f_chipMap = {};
+
+function rvHtml(label, html) {
+  const body = (html == null || html === "") ? '<div class="rv-value empty">（未填写）</div>' : html;
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+
+/* 报告里的字段名：有 reportLabel 就用它（字段标签会随组合方式变化，报告要稳定） */
+function rvLabel(f) {
+  return f.reportLabel != null ? f.reportLabel : f.label;
+}
+
+/* ---------- renderRV：每种字段类型的报告/回顾渲染（v = 模块作用域 values） ---------- */
+function renderRV(f, v) {
+  const mv0 = v;   /* 模块作用域（grp 字段会把它换成组对象） */
+  /* 内外视角的多组字段：先落到对应组的数据对象，再按原类型渲染 */
+  let grpHead = "";
+  if (f.grp) {
+    const arr = ((f.grp === "cal" ? v.cal_groups : v.vt_groups) || []);
+    const g = arr[f.gi] || {};
+    if (f.grpHead) {
+      const nm = f.grp === "cal"
+        ? pvGroupName((v.vt_groups || [])[f.gi], f.gi)
+        : pvGroupName(g, f.gi);
+      grpHead = '<div class="rv-grp-head">' + esc(nm) + '</div>';
+    }
+    v = g;
+  }
+  if (f.showIf && !f.showIf(v)) return "";
+  const val = f.key != null ? v[f.key] : null;
+  if (f.type === "pvtabs") return "";
+  if (f.type === "vtgroup") {
+    /* 报告：组名小标题 + 该组的外/内视角 */
+    return '<div class="rv-grp-head">' + esc(pvGroupName(v, f.gi)) + '</div>' +
+      renderRV({ type: "viewtrack", key: "vt" }, v);
+  }
+  if (f.type === "calgroup") {
+    /* 报告：组名小标题 + 该组的四个校准字段 */
+    return '<div class="rv-grp-head">' + esc(pvGroupName((mv0.vt_groups || [])[f.gi], f.gi)) + '</div>' +
+      (f.subs || []).map(sf => renderRV(sf, mv0)).join("");
+  }
+  if (f.type === "modpick") {
+    return rv("流程", flowText(v));
+  }
+  if (f.type === "radio") {
+    const opt = (f.options || []).find(o => o[0] === val);
+    return rv(f.label, opt ? opt[1] : "");
+  }
+  if (f.type === "checks") {
+    return rv(f.label, pickedOptionTexts(f, val).join("；"));
+  }
+  if (f.type === "score") {
+    return rv(f.label, (val != null && val !== "") ? val + " / 5" : "");
+  }
+  if (f.type === "list") {
+    return rv(rvLabel(f), val);
+  }
+  if (f.type === "chipslist") {
+    f_chipMap = {};
+    (f.chips || []).forEach(ch => { f_chipMap[ch[0]] = ch[1]; });
+    return rv(f.label, val);
+  }
+  if (f.type === "checklist") {
+    const rows = collectRows(f, v);
+    const ans = val || {};
+    const html = rows.map((row, ri) => {
+      const on = !!ans["i" + ri];
+      return '<div class="rv-as">' + (on ? "<b>✔ 满意</b> — " : "未勾选 — ") + esc(row.t || "") + '</div>';
+    }).join("");
+    if (html) return rvHtml(f.label, html);
+    return "";
+  }
+  if (f.type === "triplist") {
+    const rows = (Array.isArray(val) ? val : []).filter(r => (r.a || "").trim() || (r.b || "").trim() || (r.c || "").trim());
+    if (!rows.length) return rv(f.label, null);
+    const html = rows.map(r =>
+      '<div class="rv-as">' + esc(r.a || "（未填事情）") + '：事前判断 <b>' + esc(r.b || "—") + '</b> → 基准概率 <b>' + esc(r.c || "—") + '</b></div>'
+    ).join("");
+    return rvHtml(f.label, html);
+  }
+  if (f.type === "viewtrack") {
+    const colHtml = key => {
+      const rows = (Array.isArray(v[key]) ? v[key] : []).filter(x => (x.t || "").trim());
+      if (!rows.length) return '<div class="rv-value empty">（未填写）</div>';
+      return '<ul class="rv-list">' + rows.map(x => rvItemText(x)).join("") + '</ul>';
+    };
+    return '<div class="rv-item"><div class="rv-label">观点跟踪</div>' +
+      '<div class="rv-value"><b>外视角</b></div>' + colHtml("outside_views") +
+      '<div class="rv-value" style="margin-top:8px;"><b>内视角</b></div>' + colHtml("inside_views") +
+    '</div>';
+  }
+  if (f.type === "pctrows") {
+    const rows = Array.isArray(v[f.source]) ? v[f.source] : [];
+    let n = 0, html = "";
+    rows.forEach((x, j) => {
+      if (!(x.t || "").trim()) return;
+      n++;
+      html += '<div class="rv-as">' + n + '. ' + esc(x.t) + ' — <b>' + esc(fmtPct(v[f.prefix + j]) || "未评估") + '</b></div>';
+    });
+    return html ? rvHtml(f.label || "潜在结果与估计概率", html) : "";
+  }
+  if (f.type === "pcttable") {
+    let html = "";
+    (f.groups || []).forEach(g => {
+      const failRows = (Array.isArray(v[g.fail]) ? v[g.fail] : []).filter(x => (x.t || "").trim());
+      const succRows = (Array.isArray(v[g.succ]) ? v[g.succ] : []).filter(x => (x.t || "").trim());
+      if (!failRows.length && !succRows.length) return;
+      html += '<div class="rv-as"><b>' + esc(g.label) + '</b></div>';
+      failRows.forEach(x => {
+        html += '<div class="rv-as">失败 · ' + esc(x.t) + ' — <b>' + esc(fmtPct(x.p) || "未评估") + '</b></div>';
+      });
+      succRows.forEach(x => {
+        html += '<div class="rv-as">成功 · ' + esc(x.t) + ' — <b>' + esc(fmtPct(x.p) || "未评估") + '</b></div>';
+      });
+    });
+    if (html) return rvHtml("决策表（概率评估）", html);
+    return "";
+  }
+  if (f.type === "strattable") {
+    const rows = (Array.isArray(v[f.source]) ? v[f.source] : []).filter(x => (x.t || "").trim());
+    if (!rows.length) return "";
+    const html = rows.map(x => {
+      const pct = fmtPct(x.p) || "未评估";
+      const strat = (x[f.rk] || "").trim();
+      return '<div class="rv-as">' + esc(x.t) + '（' + esc(pct) + '）→ <b>' + (strat ? esc(strat) : "未填策略") + '</b></div>';
+    }).join("");
+    return rvHtml(f.label, html);
+  }
+  if (f.type === "otree") {
+    const rows = (Array.isArray(val) ? val : []).filter(x => (x.t || "").trim());
+    const html = rows.map((x, ri) => "<li>" + (ri + 1) + ". " + esc(x.t || "") + "</li>").join("");
+    return rvHtml("潜在结果（按偏好排序）", html ? "<ul class='rv-list'>" + html + "</ul>" : "");
+  }
+  if (f.type === "assess") {
+    const rows = (f.sources || []).reduce((acc, k) => acc.concat((Array.isArray(v[k]) ? v[k] : []).filter(x => (x.t || "").trim())), []);
+    const ans = val || {};
+    const html = rows.map((row, ri) => {
+      const a = ans["i" + ri];
+      if (!a) return "";
+      const opt = (f.options || []).find(o => o[0] === a);
+      return '<div class="rv-as"><b>' + esc(opt ? opt[1] : "") + '</b> — ' + esc(row.t || "") + '</div>';
+    }).join("");
+    if (html) return rvHtml(f.label, html);
+    return "";
+  }
+  if (f.type === "note" || f.type === "ptabs" || f.type === "sumlist" || f.type === "pvtabs") return "";
+  return grpHead + rv(rvLabel(f), val);
+}
+
+/* ---------- 组合报告：头部徽标并列 + 按模块分章 ---------- */
+function moduleChapterHtml(m, mv, ci) {
+  const mod = MODS[m];
+  const steps = moduleSteps(m, mv);
+  let sn = 0;
+  let secs = steps.map(st => {
+    const fs = (mod.fields(st.id, mv) || []).filter(f => f.type !== "note" && (!f.showIf || f.showIf(mv)));
+    const body = fs.map(f => renderRV(f, mv)).join("");
+    if (!body.trim() && mod.skipEmptySection) return "";
+    return '<div class="report-section"><h3><span class="sn">' + (++sn) + '</span>' + esc(stepTitleFor(m, st, mv)) + '</h3>' + body + '</div>';
+  }).join("");
+  /* pm 的多轮计划原样保留 */
+  if (m === "pm") {
+    const roundList = Array.isArray(mv._rounds) ? mv._rounds : [];
+    secs += roundList.map((rv0, ri) => {
+      const inner = MOD_PM.steps.map(st => {
+        const fs = (MOD_PM.fields(st.id, rv0) || []).filter(f => f.type !== "note" && f.key !== "new_round" && (!f.showIf || f.showIf(rv0)));
+        return '<div class="lr-step"><b>' + esc(stepTitleFor("pm", st, rv0)) + '</b>' + fs.map(f => renderRV(f, rv0)).join("") + '</div>';
+      }).join("");
+      return '<div class="report-section"><h3><span class="sn">↻</span>第 ' + (ri + 2) + ' 轮计划：' + esc(rv0[MOD_PM.titleKey] || "未命名") + '</h3>' + inner + '</div>';
+    }).join("");
+  }
+  /* 章末结论（各模块 conclusionKey 原样沿用；也可以是函数，如内外视角的多组结论汇总） */
+  const ckl = mod.conclusionKey || "conclusion";
+  const cval = typeof ckl === "function" ? ckl(mv) : mv[ckl];
+  if (cval && String(cval).trim()) {
+    secs += '<div class="report-section"><div class="lesson-banner" style="margin-top:0;"><span class="lb-label">' + esc(mod.conclusionLabel || "一句话结论") + '</span>' + esc(cval) + '</div></div>';
+  }
+  return '<div class="report-phase"><span class="pdot" style="background:' + mod.color + ';"></span>第' + CN_NUM[ci] + '章 · ' + esc(mod.name) + '（' + esc(mod.chapter) + '）</div>' + secs;
+}
+
+function renderReport() {
+  const r = viewingReport;
+  if (!r) { view = "home"; goRender(); return; }
+  const sel = Array.isArray(r.sel) ? r.sel.filter(m => MODS[m] && r.mods && r.mods[m]) : [];
+  const badges = sel.map(m => {
+    const vd = MODS[m].verdict(r.mods[m]);
+    return '<div class="vb-item"><span class="vb-mod" style="color:' + MODS[m].color + ';">' + esc(MODS[m].name) + '</span>' +
+      (vd && vd.t ? '<span class="verdict-banner ' + vd.cls + '">' + esc(vd.t) + '</span>' : "") + '</div>';
+  }).join("");
+  const chapters = sel.map((m, ci) => moduleChapterHtml(m, r.mods[m], ci)).join("");
+
+  app.innerHTML =
+    '<div class="report-head">' +
+      '<div class="kicker" style="font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;">' + esc(CONF.reportKicker) + '</div>' +
+      '<h1>' + esc(r.title || "未命名") + '</h1>' +
+      '<div class="meta">保存于 ' + esc(r.date) + (r.updated ? ' · 更新于 ' + esc(r.updated) : "") + ' · 流程：' + esc(flowText(r)) + '</div>' +
+      '<div class="vb-row">' + badges + '</div>' +
+      '<div class="actions-row">' +
+        (sel.indexOf("pm") >= 0 ? '<button class="btn" id="btn-followup">追加评估</button>' : "") +
+        '<button class="btn secondary" id="btn-edit-report">编辑此报告</button>' +
+        '<button class="btn secondary" id="btn-copy">复制为文字</button>' +
+        '<button class="btn secondary" id="btn-print">打印 / 导出 PDF</button>' +
+        '<button class="btn secondary" id="btn-back">← 返回首页</button>' +
+      '</div>' +
+    '</div>' + chapters + (sel.indexOf("pm") >= 0 ? followupsHtml(r) : "") +
+    '<div class="actions-row no-print"><button class="btn secondary" id="btn-back2">← 返回首页</button></div>';
+
+  document.getElementById("btn-back").onclick = backHome;
+  document.getElementById("btn-back2").onclick = backHome;
+  document.getElementById("btn-print").onclick = () => window.print();
+  document.getElementById("btn-edit-report").onclick = () => startEditReport(r);
+  const fuBtn = document.getElementById("btn-followup");
+  if (fuBtn) fuBtn.onclick = () => {
+    followupReport = r; fuVals = {}; fuSummary = "";
+    view = "followup"; goRender();
+  };
+  document.getElementById("btn-copy").onclick = () => {
+    const text = reportToText(r);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => flashCopied(), () => fallbackCopy(text));
+    } else fallbackCopy(text);
+  };
+  function backHome() { view = "home"; viewingReport = null; goRender(); }
+}
+
+/* ---------- 复制为文字：按章输出 ---------- */
+function reportToText(r) {
+  const sel = Array.isArray(r.sel) ? r.sel.filter(m => MODS[m] && r.mods && r.mods[m]) : [];
+  const L = [];
+  L.push("辅助决策组合报告：" + (r.title || "未命名"));
+  L.push("保存于 " + r.date + (r.updated ? "（更新于 " + r.updated + "）" : ""));
+  L.push("流程：" + flowText(r));
+  L.push("");
+  sel.forEach((m, ci) => {
+    const mod = MODS[m];
+    const mv = r.mods[m];
+    L.push("════ 第" + CN_NUM[ci] + "章 · " + mod.name + "（" + mod.chapter + "）════");
+    const vd = mod.verdict(mv);
+    if (vd && vd.t) L.push("评估结论：" + vd.t);
+    moduleSteps(m, mv).forEach(st => {
+      const pairs = buildPairs(mod, st, mv);
+      if (pairs.length) section_text(L, stepTitleFor(m, st, mv), pairs);
+    });
+    if (m === "pm") {
+      const roundList = Array.isArray(mv._rounds) ? mv._rounds : [];
+      roundList.forEach((rv0, ri) => {
+        L.push("【第 " + (ri + 2) + " 轮计划：" + (rv0[MOD_PM.titleKey] || "未命名") + "】");
+        MOD_PM.steps.forEach(st => {
+          const pairs = buildPairs(MOD_PM, st, rv0).filter(p => p[0] !== "是否开启新一轮计划？");
+          if (pairs.length) section_text(L, "　" + st.title, pairs);
+        });
+      });
+    }
+    const ckl = mod.conclusionKey || "conclusion";
+    const cval = typeof ckl === "function" ? ckl(mv) : mv[ckl];
+    if (cval && String(cval).trim()) L.push((mod.conclusionLabel || "一句话结论") + "：" + cval);
+    L.push("");
+  });
+  (Array.isArray(r.followups) ? r.followups : []).forEach((fu, fi) => {
+    L.push("【追加评估 " + (fi + 1) + " · " + fu.date + "】");
+    Object.keys(fu.evals || {}).forEach(id => {
+      L.push("  - " + fuLeftText(r.mods.pm || {}, id) + " → " + fu.evals[id]);
+    });
+    if (fu.summary) L.push("一句话总结：" + fu.summary);
+    L.push("");
+  });
+  return L.join("\n");
+
+  /* 每种字段类型的文字输出分支（第三处实现） */
+  function buildPairs(mod, st, sc) {
+    const pairs = [];
+    (mod.fields(st.id, sc) || []).forEach(f => {
+      if (f.type === "note" || f.type === "ptabs" || f.type === "sumlist" || f.type === "pvtabs") return;
+      /* 内外视角的多组字段：值取自对应组，标签带上组名以便区分 */
+      const sv = f.grp ? (((f.grp === "cal" ? sc.cal_groups : sc.vt_groups) || [])[f.gi] || {}) : sc;
+      const gname = f.grp ? pvGroupName(f.grp === "cal" ? (sc.vt_groups || [])[f.gi] : sv, f.gi) : "";
+      if (f.showIf && !f.showIf(sv)) return;
+      const val = f.key != null ? sv[f.key] : null;
+      if (f.type === "modpick") {
+        pairs.push(["流程", flowText(sc)]);
+      } else if (f.type === "checks") {
+        const seg = pickedOptionTexts(f, val);
+        if (seg.length) pairs.push([f.label, seg.join("；")]);
+      } else if (f.type === "radio") {
+        const opt = (f.options || []).find(o => o[0] === val);
+        if (opt) pairs.push([f.label, opt[1]]);
+      } else if (f.type === "score") {
+        if (val != null && val !== "") pairs.push([f.label, val + " / 5"]);
+      } else if (f.type === "assess") {
+        const rows = (f.sources || []).reduce((acc, k) => acc.concat((Array.isArray(sc[k]) ? sc[k] : []).filter(x => (x.t || "").trim())), []);
+        const ans = val || {};
+        rows.forEach((row, ri) => {
+          const a = ans["i" + ri];
+          if (a) {
+            const opt = (f.options || []).find(o => o[0] === a);
+            pairs.push([f.label + "：" + (row.t || ""), opt ? opt[1] : ""]);
+          }
+        });
+      } else if (f.type === "chipslist") {
+        const chipMap = {};
+        (f.chips || []).forEach(ch => { chipMap[ch[0]] = ch[1]; });
+        const items = (Array.isArray(val) ? val : []).map(x => (x.t || "") + (x.c && chipMap[x.c] ? "（" + chipMap[x.c] + "）" : ""));
+        if (items.length) pairs.push([f.label, items]);
+      } else if (f.type === "checklist") {
+        const rows = collectRows(f, sc);
+        const ans = val || {};
+        rows.forEach((row, ri) => {
+          pairs.push([f.label + "：" + (row.t || ""), ans["i" + ri] ? "✔ 满意" : "未勾选"]);
+        });
+      } else if (f.type === "triplist") {
+        const rows = (Array.isArray(val) ? val : []).filter(x => (x.a || "").trim() || (x.b || "").trim() || (x.c || "").trim());
+        if (rows.length) pairs.push([f.label, rows.map(x => (x.a || "") + "：事前 " + (x.b || "—") + " → 基准 " + (x.c || "—"))]);
+      } else if (f.type === "vtgroup") {
+        const outs = (Array.isArray(sv.outside_views) ? sv.outside_views : []).filter(x => (x.t || "").trim()).map(x => x.t);
+        const ins = (Array.isArray(sv.inside_views) ? sv.inside_views : []).filter(x => (x.t || "").trim()).map(x => x.t);
+        if (outs.length) pairs.push(["外视角 · " + gname, outs]);
+        if (ins.length) pairs.push(["内视角 · " + gname, ins]);
+      } else if (f.type === "calgroup") {
+        (f.subs || []).forEach(sf => {
+          const v0 = sv[sf.key];
+          if (v0 != null && String(v0).trim()) pairs.push([(sf.reportLabel != null ? sf.reportLabel : sf.label) + " · " + gname, v0]);
+        });
+      } else if (f.type === "viewtrack") {
+        const outs = (Array.isArray(sv.outside_views) ? sv.outside_views : []).filter(x => (x.t || "").trim()).map(x => x.t);
+        const ins = (Array.isArray(sv.inside_views) ? sv.inside_views : []).filter(x => (x.t || "").trim()).map(x => x.t);
+        if (outs.length) pairs.push(["外视角" + (gname ? " · " + gname : ""), outs]);
+        if (ins.length) pairs.push(["内视角" + (gname ? " · " + gname : ""), ins]);
+      } else if (f.type === "pctrows") {
+        const rows = Array.isArray(sc[f.source]) ? sc[f.source] : [];
+        rows.forEach((x, j) => {
+          if (!(x.t || "").trim()) return;
+          pairs.push(["「" + trunc(x.t, 12) + "」发生的可能性", fmtPct(sc[f.prefix + j]) || "未评估"]);
+        });
+      } else if (f.type === "pcttable") {
+        (f.groups || []).forEach(g => {
+          const items = [];
+          (Array.isArray(sc[g.fail]) ? sc[g.fail] : []).filter(x => (x.t || "").trim())
+            .forEach(x => items.push("失败 · " + x.t + " — " + (fmtPct(x.p) || "未评估")));
+          (Array.isArray(sc[g.succ]) ? sc[g.succ] : []).filter(x => (x.t || "").trim())
+            .forEach(x => items.push("成功 · " + x.t + " — " + (fmtPct(x.p) || "未评估")));
+          if (items.length) pairs.push(["决策表 · " + g.label, items]);
+        });
+      } else if (f.type === "strattable") {
+        const items = (Array.isArray(sc[f.source]) ? sc[f.source] : []).filter(x => (x.t || "").trim())
+          .map(x => x.t + "（" + (fmtPct(x.p) || "未评估") + "）→ " + ((x[f.rk] || "").trim() || "未填策略"));
+        if (items.length) pairs.push([String(f.label || "").split("：")[0], items]);
+      } else if (f.type === "otree") {
+        const items = (Array.isArray(val) ? val : []).filter(x => (x.t || "").trim())
+          .map((x, ri) => (ri + 1) + ". " + (x.t || ""));
+        if (items.length) pairs.push(["潜在结果（按偏好排序）", items]);
+      } else {
+        if (val != null && val !== "" && (!Array.isArray(val) || val.length)) pairs.push([rvLabel(f) + (gname ? " · " + gname : ""), val]);
+      }
+    });
+    return pairs;
+  }
+
+  function section_text(L2, name, pairs) {
+    L2.push("【" + name + "】");
+    pairs.forEach(([label, val]) => {
+      if (val == null || val === "" || (Array.isArray(val) && val.length === 0)) return;
+      if (Array.isArray(val)) {
+        L2.push(label + "：");
+        val.forEach(x => L2.push("  - " + (typeof x === "object" ? (x.t || "") : x)));
+      } else L2.push(label + "：" + val);
+    });
+    L2.push("");
+  }
+}
+
+/* ---------- pm 报告标题：多轮取最新一轮的名称，否则取第 1 轮 ---------- */
+function pmReportTitle(v) {
+  const rounds = Array.isArray(v._rounds) ? v._rounds : [];
+  for (let i = rounds.length - 1; i >= 0; i--) {
+    const t = rounds[i] && String(rounds[i][MOD_PM.titleKey] || "").trim();
+    if (t) return t;
+  }
+  return String(v[MOD_PM.titleKey] || "").trim() || "未命名";
+}
+
+/* ---------- 追加评估：结果出来后回看每个事项（仅含 pm 的报告开放） ---------- */
+function fuLeftText(pv, id) {
+  const m = /^r(\d+):([a-z_]+):(\d+)$/.exec(id);
+  if (!m) return "（未知条目）";
+  const scope = Number(m[1]) === 0 ? pv : (Array.isArray(pv._rounds) ? pv._rounds[Number(m[1]) - 1] : null);
+  if (!scope) return "（条目所属轮次已删除）";
+  const kind = m[2], ri = Number(m[3]);
+  const keyMap = { fail_ctrl: "fail_ctrl", fail_unctrl: "fail_unctrl", success_ctrl: "success_ctrl", success_unctrl: "success_unctrl", commit: "fail_ctrl", hedge: "fail_unctrl" };
+  const key = keyMap[kind];
+  if (!key) return "（未知条目）";
+  const rows = Array.isArray(scope[key]) ? scope[key] : [];
+  const x = rows[ri];
+  if (!x) return "（条目已删除）";
+  const pct = fmtPct(x.p) ? "（" + fmtPct(x.p) + "）" : "";
+  if (kind === "commit") return x.t + pct + " → 承诺：" + ((x.commit || "").trim() || "（未填）");
+  if (kind === "hedge") return x.t + pct + " → 对冲：" + ((x.hedge || "").trim() || "（未填）");
+  const tag = (kind === "fail_ctrl" || kind === "success_ctrl") ? "【可控】" : "【不可控】";
+  return tag + x.t + pct;
+}
+
+function fuCollect(pv) {
+  /* 只评估最后一轮（多轮 = 在第五步选择继续推进的那一轮）的事项 */
+  const rounds = Array.isArray(pv._rounds) ? pv._rounds : [];
+  const lastIdx = rounds.length;
+  const scopes = [{ v: lastIdx === 0 ? pv : rounds[lastIdx - 1], idx: lastIdx, label: "第 " + (lastIdx + 1) + " 轮" }];
+  const multi = rounds.length > 0;
+  const secs = [];
+  scopes.forEach(sc => {
+    const list = k => (Array.isArray(sc.v[k]) ? sc.v[k] : []);
+    const pre = multi ? sc.label + " · " : "";
+    const mk = (kind, ri) => "r" + sc.idx + ":" + kind + ":" + ri;
+    const pmC = [], pmU = [], cm = [], hg = [];
+    const addItems = (key, kind, acc) => list(key).forEach((x, ri) => {
+      if ((x.t || "").trim()) { const id = mk(kind, ri); acc.push({ id: id, left: fuLeftText(pv, id) }); }
+    });
+    addItems("fail_ctrl", "fail_ctrl", pmC);
+    addItems("fail_unctrl", "fail_unctrl", pmU);
+    addItems("fail_ctrl", "commit", cm);
+    addItems("fail_unctrl", "hedge", hg);
+    const pmPh = "结果如何？例：实际发生了 / 没有发生；当时估的概率准不准……";
+    if (pmC.length) secs.push({ name: pre + "事前验尸 · 可控（失败原因回看）", ph: pmPh, items: pmC });
+    if (pmU.length) secs.push({ name: pre + "事前验尸 · 不可控（失败原因回看）", ph: pmPh, items: pmU });
+    if (cm.length) secs.push({ name: pre + "预先承诺（落实情况）", ph: "承诺兑现了吗？效果如何？……", items: cm });
+    if (hg.length) secs.push({ name: pre + "对冲（保险是否用上）", ph: "保险用上了吗？有没有买错或漏买？……", items: hg });
+  });
+  return secs;
+}
+
+function followupsHtml(r) {
+  const fus = Array.isArray(r.followups) ? r.followups : [];
+  if (!fus.length) return "";
+  return fus.map((fu, fi) => {
+    const items = Object.keys(fu.evals || {}).map(id =>
+      '<div class="rv-as">' + esc(fuLeftText((r.mods && r.mods.pm) || {}, id)) + ' → <b>' + esc(fu.evals[id]) + '</b></div>').join("");
+    return '<div class="report-section"><h3><span class="sn">✎</span>追加评估 ' + (fi + 1) + ' · ' + esc(fu.date) + '</h3>' +
+      (items || '<div class="rv-value empty">（本次未填写逐条评估）</div>') +
+      (fu.summary ? '<div class="lesson-banner" style="margin-top:12px;"><span class="lb-label">一句话总结</span>' + esc(fu.summary) + '</div>' : "") +
+    '</div>';
+  }).join("");
+}
+
+function renderFollowup() {
+  const r = followupReport;
+  if (!r || !r.mods || !r.mods.pm) { view = "home"; goRender(); return; }
+  const pv = r.mods.pm;
+  const secs = fuCollect(pv);
+  const past = followupsHtml(r);
+
+  let formHtml = "";
+  if (!secs.length) {
+    formHtml = '<p class="empty-hint">这份报告里没有可评估的条目。</p>';
+  } else {
+    formHtml = secs.map(sec =>
+      '<div class="field"><label class="field-label">' + esc(sec.name) + '</label>' +
+      '<div class="st-table">' +
+        '<div class="st-thead"><div style="flex:0 0 50%;">历史填写</div><div class="st-h-input" style="flex:0 0 50%;">追加评估（结果出来后的回看）</div></div>' +
+        sec.items.map(it =>
+          '<div class="st-row">' +
+            '<div class="st-reason"><span style="flex:1;min-width:0;">' + esc(it.left) + '</span></div>' +
+            '<div class="st-input"><textarea data-fuid="' + it.id + '" rows="1" placeholder="' + esc(sec.ph) + '">' + esc(fuVals[it.id] || "") + '</textarea></div>' +
+          '</div>').join("") +
+      '</div></div>').join("");
+  }
+
+  app.innerHTML =
+    '<div class="narrow">' +
+    '<div class="report-head">' +
+      '<div class="kicker" style="font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;">追加评估 · 结果出来后的回看</div>' +
+      '<h1>' + esc(r.title || pmReportTitle(pv)) + '</h1>' +
+      '<div class="meta">原报告保存于 ' + esc(r.date) + ' · 已有 ' + (Array.isArray(r.followups) ? r.followups.length : 0) + ' 次追加评估</div>' +
+    '</div>' +
+    past +
+    '<div class="report-section"><h3><span class="sn">✎</span>本次追加评估</h3>' +
+      formHtml +
+      '<div class="field" style="margin-top:18px;"><label class="field-label">一句话总结</label>' +
+        '<textarea id="fu-summary" rows="2" placeholder="例：整体判断偏乐观，排期风险果然发生了——下一轮要把缓冲翻倍。">' + esc(fuSummary) + '</textarea></div>' +
+      '<div class="actions-row no-print">' +
+        '<button class="btn" id="btn-fu-save">保存本次评估</button>' +
+        '<button class="btn secondary" id="btn-fu-back">← 返回报告</button>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+
+  app.querySelectorAll("textarea[data-fuid]").forEach(el => {
+    el.addEventListener("input", () => { fuVals[el.dataset.fuid] = el.value; growEl(el); });
+  });
+  const sum = document.getElementById("fu-summary");
+  if (sum) sum.addEventListener("input", () => { fuSummary = sum.value; growEl(sum); });
+  document.getElementById("btn-fu-save").onclick = () => {
+    const evals = {};
+    Object.keys(fuVals).forEach(id => { if ((fuVals[id] || "").trim()) evals[id] = fuVals[id].trim(); });
+    if (!Array.isArray(r.followups)) r.followups = [];
+    r.followups.push({ date: new Date().toLocaleString("zh-CN"), evals: evals, summary: fuSummary.trim() });
+    persistReports();
+    fuVals = {}; fuSummary = "";
+    viewingReport = r; followupReport = null;
+    view = "report"; goRender();
+  };
+  document.getElementById("btn-fu-back").onclick = () => {
+    viewingReport = r; followupReport = null;
+    view = "report"; goRender();
+  };
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); flashCopied(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function flashCopied() {
+  const btn = document.getElementById("btn-copy");
+  if (!btn) return;
+  const old = btn.textContent;
+  btn.textContent = "已复制 ✓";
+  setTimeout(() => { btn.textContent = old; }, 1500);
+}
+
+/* ---------- 启动：旧报告迁移（只进不出，一次且仅一次） ---------- */
+migrateReports();
+render();
+</script>
+</body>
+</html>

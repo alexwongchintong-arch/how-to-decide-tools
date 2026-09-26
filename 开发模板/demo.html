@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>决策质量分离复盘 — 基于《对赌（实践版）》第一章</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f4;
+    --surface: #ffffff;
+    --border: #e6e3dd;
+    --text: #1a1a1a;
+    --text-secondary: #55534f;
+    --text-muted: #999590;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fd;
+    --accent-hover: #1646b0;
+    --success: #1a7f3f;
+    --success-soft: #e9f5ec;
+    --warning: #b85415;
+    --warning-soft: #fdf1e7;
+    --danger: #c02a2a;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 14px rgba(0,0,0,0.08);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 780px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* ---------- 首页 ---------- */
+  .hero { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: 32px; box-shadow: var(--shadow); margin-bottom: 24px; }
+  .hero .kicker { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 8px; }
+  .hero h1 { font-size: 24px; font-weight: 700; margin-bottom: 14px; line-height: 1.35; }
+  .hero p { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; }
+  .hero .question-box { background: var(--accent-soft); border-left: 3px solid var(--accent);
+                        border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 12px 16px; margin: 16px 0;
+                        font-size: 14px; }
+  .hero .question-box strong { color: var(--accent); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; transition: background 0.12s;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn.secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: #f0efec; }
+  .btn.danger-ghost { background: transparent; color: var(--danger); border: 1px solid transparent; font-weight: 500; }
+  .btn.danger-ghost:hover { background: #fbeaea; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .principles { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                padding: 24px 32px; margin-bottom: 24px; box-shadow: var(--shadow); }
+  .principles h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .principles ol { padding-left: 20px; font-size: 13.5px; color: var(--text-secondary); }
+  .principles li { margin-bottom: 6px; }
+  .principles li strong { color: var(--text); }
+
+  .report-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 padding: 24px 32px; box-shadow: var(--shadow); }
+  .report-list h2 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+  .report-item { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                 padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .report-item:last-child { border-bottom: none; }
+  .report-item .ri-main { flex: 1; cursor: pointer; }
+  .report-item .ri-title { font-size: 14px; font-weight: 600; }
+  .report-item .ri-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .empty-hint { font-size: 13px; color: var(--text-muted); }
+
+  /* ---------- 步骤导航 ---------- */
+  .stepper { display: flex; align-items: center; gap: 4px; margin-bottom: 22px; flex-wrap: wrap; }
+  .step-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12px; color: var(--text-muted); cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .step-chip .num { width: 17px; height: 17px; border-radius: 50%; background: #eceae6;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    font-size: 10.5px; font-weight: 700; color: var(--text-muted); }
+  .step-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .step-chip.active .num { background: var(--accent); color: #fff; }
+  .step-chip.done { color: var(--success); }
+  .step-chip.done .num { background: var(--success); color: #fff; }
+  .step-sep { color: #d4d1cb; font-size: 11px; }
+
+  /* ---------- 步骤卡片 ---------- */
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+               box-shadow: var(--shadow); overflow: hidden; }
+  .step-head { padding: 26px 32px 20px; border-bottom: 1px solid var(--border); }
+  .step-head .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+                    background: var(--accent-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 10px; }
+  .step-head h2 { font-size: 20px; font-weight: 700; }
+  .guide { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
+  .guide-row { display: flex; gap: 10px; font-size: 13px; align-items: baseline; }
+  .guide-label { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+  .gl-do { background: var(--success-soft); color: var(--success); }
+  .gl-dont { background: var(--warning-soft); color: var(--warning); }
+  .gl-bridge { background: var(--accent-soft); color: var(--accent); }
+  .guide-text { color: var(--text-secondary); }
+
+  .step-body { padding: 26px 32px 32px; }
+  .field { margin-bottom: 24px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { font-size: 13.5px; font-weight: 600; margin-bottom: 7px; display: block; }
+  .field-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  input[type="text"], input[type="date"], textarea, select {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--text);
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,0.12); }
+  textarea { resize: vertical; min-height: 76px; line-height: 1.6; }
+
+  /* radio 选项 */
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-option {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.12s; font-size: 13.5px;
+  }
+  .radio-option:hover { border-color: var(--accent); }
+  .radio-option.checked { border-color: var(--accent); background: var(--accent-soft); }
+  .radio-option input { margin-top: 3px; accent-color: var(--accent); }
+  .radio-option .opt-desc { color: var(--text-muted); font-size: 12px; display: block; }
+
+  /* 评分 0-5 */
+  .score-row { display: flex; gap: 8px; align-items: center; }
+  .score-btn {
+    width: 42px; height: 42px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: #fff; font-size: 15px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+    transition: all 0.12s;
+  }
+  .score-btn:hover { border-color: var(--accent); }
+  .score-btn.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .score-endlabel { font-size: 11.5px; color: var(--text-muted); width: 74px; line-height: 1.4; }
+  .score-endlabel.right { text-align: right; color: var(--accent); }
+
+  /* checklist */
+  .check-option { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; font-size: 13.5px;
+                  border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; cursor: pointer; }
+  .check-option:hover { border-color: var(--accent); }
+  .check-option.checked { border-color: var(--accent); background: var(--accent-soft); }
+  .check-option input { margin-top: 3px; accent-color: var(--accent); }
+
+  /* 动态列表 */
+  .list-rows { display: flex; flex-direction: column; gap: 10px; }
+  .list-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; background: #fcfbfa; }
+  .list-row-top { display: flex; align-items: flex-start; gap: 10px; }
+  .list-row-top .grow { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .row-remove { flex-shrink: 0; border: none; background: transparent; color: var(--text-muted);
+                cursor: pointer; font-size: 16px; padding: 4px 6px; border-radius: 4px; line-height: 1; }
+  .row-remove:hover { color: var(--danger); background: #fbeaea; }
+  .row-cmp { display: flex; gap: 6px; flex-wrap: wrap; }
+  .row-cmp .chip { padding: 4px 12px; font-size: 12px; border: 1px solid var(--border); border-radius: 999px;
+                   cursor: pointer; background: #fff; color: var(--text-secondary); }
+  .row-cmp .chip.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .list-add { border: 1px dashed var(--border); background: transparent; color: var(--accent);
+              padding: 9px; width: 100%; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; }
+  .list-add:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+  /* 象限提示 */
+  .quadrant-note { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+                   padding: 10px 14px; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 10px; }
+
+  .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; gap: 12px; }
+  .nav-note { font-size: 12px; color: var(--text-muted); }
+
+  /* ---------- 报告 ---------- */
+  .report-head { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 padding: 28px 32px; box-shadow: var(--shadow); margin-bottom: 20px; }
+  .report-head h1 { font-size: 21px; margin-bottom: 6px; }
+  .report-head .meta { font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px; }
+  .quadrant-banner { display: inline-block; padding: 8px 18px; border-radius: var(--radius-sm);
+                     font-size: 14px; font-weight: 700; }
+  .qb-deserved { background: var(--success-soft); color: var(--success); }
+  .qb-badluck { background: var(--accent-soft); color: var(--accent); }
+  .qb-goodluck { background: var(--warning-soft); color: var(--warning); }
+  .qb-fault { background: #fbeaea; color: var(--danger); }
+  .qb-na { background: #efedea; color: var(--text-secondary); }
+  .lesson-banner { margin-top: 14px; background: #fffbeb; border: 1px solid #f2e3b3; border-radius: var(--radius-sm);
+                   padding: 12px 16px; font-size: 14px; }
+  .lesson-banner .lb-label { font-size: 11px; font-weight: 700; color: #a07d1c; display: block; margin-bottom: 3px; }
+
+  .report-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                    padding: 22px 28px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .report-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .report-section h3 .sn { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+                           font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .rv-item { margin-bottom: 12px; }
+  .rv-item:last-child { margin-bottom: 0; }
+  .rv-label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+  .rv-value { font-size: 13.5px; color: var(--text); white-space: pre-wrap; }
+  .rv-value.empty { color: var(--text-muted); font-style: italic; }
+  .rv-list { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .rv-list li { margin-bottom: 3px; }
+
+  .actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  @media (max-width: 640px) {
+    .container { padding: 20px 14px 60px; }
+    .hero, .principles, .report-list, .step-head, .step-body, .report-head, .report-section { padding-left: 18px; padding-right: 18px; }
+    .score-btn { width: 36px; height: 36px; }
+    .score-endlabel { width: 56px; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .actions-row, .no-print { display: none !important; }
+    .report-head, .report-section { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+ * 数据：七步配置
+ * 每一步：goal=本步做什么  notDo=本步不做什么  bridge=承上启下
+ * ===================================================================== */
+
+const STEPS = [
+  {
+    id: "s1", title: "锚定事件", tag: "记录事实",
+    goal: "把“你当时决定了什么”和“实际发生了什么”写成两段客观事实。这是后面所有分析的对象。",
+    notDo: "本步不做任何评价：不说决策好坏，不分析原因，不谈运气。只记录事实。",
+    bridge: "完成本步后，你就有了一个明确的复盘对象。下一步我们将穿越回“做决策的那一刻”。",
+    fields: [
+      { key: "title", label: "给这次决策起个名字", type: "text", placeholder: "例：接受波士顿的工作", required: true },
+      { key: "decision_date", label: "决策时间（大约即可，可留空）", type: "date" },
+      { key: "decision_desc", label: "你当时决定了什么？（决策内容）", type: "textarea",
+        placeholder: "客观描述你选择了什么、放弃了什么。例：接受了波士顿的工作机会，放弃了佐治亚州的工作。" },
+      { key: "result_desc", label: "实际发生了什么？（结果）", type: "textarea",
+        placeholder: "客观描述最终发生的事。例：第一个冬天就无法忍受寒冷，第二个冬天到来前辞职搬回了老家。" },
+      { key: "result_date", label: "结果明朗的时间（大约即可，可留空）", type: "date" },
+      { key: "result_eval", label: "就你当时的目标而言，这个结果是：", type: "radio",
+        options: [
+          ["good", "好结果", "事情大体朝你希望的方向发展了"],
+          ["bad", "差结果", "事情大体违背了你的期望"],
+          ["neutral", "不好不坏", "谈不上好也谈不上差"]
+        ] }
+    ]
+  },
+  {
+    id: "s2", title: "回到决策时刻", tag: "还原已知",
+    goal: "还原做决策那一刻的状态：你的目标、你掌握的信息、你的依据。就像给“当时的自己”写一份档案。",
+    notDo: "本步不允许出现任何结果信息。请不要写“现在看来”“结果证明”这类话——那些是事后才知道的，写进来会污染后面的分析。",
+    bridge: "只有先站回当时的位置，第 4 步对决策质量的评估才不会被结果“倒推”污染。",
+    fields: [
+      { key: "goal_desc", label: "当时你想通过这个决策实现什么？（目标）", type: "textarea",
+        placeholder: "例：职业前景更好的工作；收入上一个台阶。" },
+      { key: "known_info", label: "决策时你掌握了哪些信息？（列 2~4 条）", type: "list", minRows: 2,
+        itemPlaceholder: "例：2 月实地去波士顿体验过一次冬天，觉得不算太糟", showIndex: true },
+      { key: "basis", label: "你的决策依据是什么？", type: "textarea",
+        placeholder: "例：直觉、他人的建议、数据、过往经验、估算……例：工作描述完全符合期望；对方公司口碑好。" },
+      { key: "unknown_after", label: "（可选）哪些信息是你事后才知道的？", type: "textarea",
+        placeholder: "把它们写下来，是为了在第 4 步提醒你：评估时要把这些信息排除在外。",
+        hint: "例：自己原来受不了连续数月的阴郁天气；新英格兰的冬天和 2 月的短住体验完全不同。" }
+    ]
+  },
+  {
+    id: "s3", title: "重建可能性", tag: "画出其他树枝",
+    goal: "把决策想象成一棵树：你实际经历的结果只是其中一根树枝。本步请写下至少 3 个“当时确实可能发生”的其他结果。",
+    notDo: "不需要估算精确概率，也不需要纠结这些结果后来有没有苗头——只要“站在决策时刻看，它们是可能发生的”就够了。",
+    bridge: "可能性画得越全，第 5 步分清“运气”和“实力”就越容易：如果很多结果都可能发生，单一结果就不能全归功或归咎于你。",
+    fields: [
+      { key: "alternatives", label: "其他当时可能发生的结果（至少 3 条，每条标注比实际结果更好 / 更差 / 差不多）", type: "list", minRows: 3,
+        rowFields: [
+          { key: "t", type: "textarea", placeholder: "描述一个当时可能发生的结果" },
+          { key: "cmp", type: "rowchips", options: [["better", "比实际更好"], ["worse", "比实际更差"], ["same", "和实际差不多"]] }
+        ] },
+      { key: "felt", label: "写完之后回顾：把这些可能性和实际结果放在一起看，你对这次经历的感觉有变化吗？", type: "textarea",
+        placeholder: "例：原来“辞职搬回老家”并不是唯一注定的结局——我当时也可能爱上那里的冬天。" }
+    ]
+  },
+  {
+    id: "s4", title: "评估决策质量", tag: "只看过程",
+    goal: "现在给“决策质量”打分：0（糟糕的决定）~ 5（伟大的决定）。评分的唯一依据是第 2 步（当时你知道什么、依据什么）和第 3 步（当时有哪些可能）。",
+    notDo: "评分理由里不允许出现结果。判定标准是：当时的你，用当时的信息，做出的选择是否有可能带来好结果。“闯红灯没出事”也是糟糕的决策。",
+    bridge: "有了决策质量评分，下一步把它和第 1 步的结果质量放在一起，就能定位这次经历到底属于哪种情况。",
+    fields: [
+      { key: "q_score", label: "决策质量评分", type: "score" },
+      { key: "q_reason", label: "评分理由（请基于当时的信息和可能性来写）", type: "textarea",
+        placeholder: "自查：理由里如果出现了“因为结果好/坏”，请删掉重写。",
+        hint: "例：4 分——薪资和职业前景明显更优；唯一的不确定因素（冬天）我做过实地体验，是有依据的估算。" }
+    ]
+  },
+  {
+    id: "s5", title: "定位四象限", tag: "运气 vs 能力",
+    goal: "把第 4 步的决策质量和第 1 步的结果质量放进 2×2 表格，定位这次经历属于哪一格，然后把这次经历拆解成“运气成分”和“能力成分”。",
+    notDo: "定位不是给结论贴金或抹黑：落在“好运气 / 坏运气”不丢人，落在“应得的奖励 / 咎由自取”也不代表无可挑剔。它只是决定第 6 步该提炼哪种教训。",
+    bridge: "象限决定了第 6 步的问题清单：对“坏运气”的正确回应，和“咎由自取”的完全不同。",
+    fields: [
+      { key: "quadrant", label: "你这次经历属于哪一格？", type: "quadrant" },
+      { key: "luck_factors", label: "运气成分：列出至少 3 个你无法控制的因素（别人的行为、天气、时机、意外……）", type: "list", minRows: 3,
+        itemPlaceholder: "例：2 月体验那天恰好赶上了难得的暖流" },
+      { key: "skill_factors", label: "能力成分：列出至少 3 个由你的决策和行动决定的因素", type: "list", minRows: 3,
+        itemPlaceholder: "例：主动去实地体验了冬天的气候" }
+    ]
+  },
+  {
+    id: "s6", title: "提炼教训", tag: "取对经验",
+    goal: "不同象限对应不同的正确教训。本步已经根据你在第 5 步的定位，为你生成了专属的问题清单。",
+    notDo: "不要跳过与你直觉相反的问题——好结果也要找改进空间；坏结果的正确回应，可能根本不是“下次别这么做”。",
+    bridge: "完成本步后，你会得到一份可以保存和回顾的完整复盘报告。",
+    dynamic: true
+  },
+  {
+    id: "s7", title: "复核与报告", tag: "前后对照",
+    goal: "回到开头的问题：仅凭结果，你会把它称为“最佳 / 最差决策”吗？经过 6 步分析后，答案变了吗？最后生成并保存复盘报告。",
+    notDo: "本步不再引入新分析。如果报告让你想修改前面的答案，随时可以返回上一步。",
+    bridge: "保存后可以从首页再次查看，也可以复制成文字。建议把“一句话教训”贴在下一次同类决策面前。",
+    fields: [
+      { key: "before_label", label: "复盘之前（仅凭结果），你曾把它看作：", type: "radio",
+        options: [["best", "最佳决策"], ["worst", "最差决策"], ["neither", "两者都不是"], ["unaware", "从没想过这个问题"]] },
+      { key: "after_label", label: "现在，经过复盘，你认为它是：", type: "radio",
+        options: [["best", "最佳决策"], ["worst", "最差决策"], ["neither", "两者都不是"], ["unaware", "从没想过这个问题"]] },
+      { key: "shift_note", label: "如果前后看法有变化，变化来自哪一步？如果没变化，为什么？", type: "textarea",
+        placeholder: "例：变化来自第 3 步——看到“我可能爱上那里的冬天”原本同样是合理结果时，我不再觉得这是一个“最差决策”。" }
+    ]
+  }
+];
+
+/* 第 6 步：按象限生成的动态字段 */
+const QUADRANT_LESSONS = {
+  deserved: {
+    label: "应得的奖励（好决策 × 好结果）",
+    banner: "好决策带来好结果，最容易让人自满。但“做出好决策”不等于“做出最佳决策”——按下面的清单找一找改进空间。",
+    fields: [
+      { key: "improve_check", label: "对照自查（勾选所有“是”的项）", type: "check", options: [
+        ["more_info", "在做决定之前，我能获得更多或更准确的信息吗？"],
+        ["earlier", "我能更早一点做决定吗？"],
+        ["slower", "我能多花一些时间做决定吗？"],
+        ["hindsight", "如果事先获知某些事后才知道的信息，我会改变决定吗？"],
+        ["better_possible", "当时有没有可能产生明显更好的结果？"]
+      ] },
+      { key: "keep_doing", label: "哪些做法值得在同类决策中固定下来？", type: "textarea",
+        placeholder: "例：对关键不确定因素（气候、城市生活）先做小成本实地体验，再下判断。" },
+      { key: "improve_action", label: "对勾选的每一项：对应的改进动作是什么？", type: "textarea",
+        placeholder: "例：更早做决定——下次拿到 offer 后先谈入职时间，给自己留决策窗口。" }
+    ]
+  },
+  badluck: {
+    label: "坏运气（好决策 × 差结果）",
+    banner: "好决策遭遇差结果。这一格最大的陷阱是：因为结果糟糕就否定决策本身，以后不再做同类好决策。",
+    fields: [
+      { key: "repeat_worth", label: "剥离运气之后，这个决策值得在未来同类情况下重复吗？为什么？", type: "textarea",
+        placeholder: "例：值得。同样的信息条件下，我仍会做出同样的选择——差的只是那一段天气运气。" },
+      { key: "hedge", label: "同类的坏运气再来一次，你可以提前做什么准备来减轻损失？", type: "textarea",
+        placeholder: "例：先租房一年再决定长住；谈合同时加入提前离职的宽松条款。" }
+    ]
+  },
+  goodluck: {
+    label: "好运气（差决策 × 好结果）",
+    banner: "差决策带来了好结果。这一格最大的陷阱是：把成功归因于自己的做法，以后照单全收地重复它。",
+    fields: [
+      { key: "copyable", label: "这次成功有多少可复制性？如果用同样的方式再做 10 次，你预期几次会有好结果？", type: "textarea",
+        placeholder: "例：大概 3 次。能成主要靠那年的市场行情，而不是我的判断。" },
+      { key: "risky_part", label: "这次决策里，哪个部分其实是在碰运气？重复它可能付出什么代价？", type: "textarea",
+        placeholder: "例：没做尽职调查就 all in。重复这种做法，总有一次会撞上不可挽回的损失。" }
+    ]
+  },
+  fault: {
+    label: "咎由自取（差决策 × 差结果）",
+    banner: "差决策带来差结果。这不是坏运气——这一格的教训最有价值，因为它完全指向你可以改变的东西。",
+    fields: [
+      { key: "weakest", label: "决策过程中最薄弱的环节是什么？（信息不足？依据错误？没考虑其他选项？没估算可能性？）", type: "textarea",
+        placeholder: "例：只凭个人体验就投资，从未核对公司的财务数据和负债情况。" },
+      { key: "next_time", label: "下次遇到同类决策，你会在哪个环节做出什么改变？", type: "textarea",
+        placeholder: "例：投资前先完成基本面核查；把“我喜欢这家公司的产品”和“这家公司值得投资”区分开。" }
+    ]
+  },
+  na: {
+    label: "结果不好不坏",
+    banner: "结果不好不坏时，结果本身提供的教训有限。重点转向决策过程：这次经历里有没有可以沉淀的做法？",
+    fields: [
+      { key: "keep_doing", label: "这次决策过程中，有什么值得在同类决策中保留的做法？", type: "textarea" },
+      { key: "improve_action", label: "有什么可以改进的地方？", type: "textarea" }
+    ]
+  }
+};
+
+const COMMON_LESSON = { key: "lesson", label: "一句话教训：把这次复盘最想带走的东西写成一句话", type: "textarea",
+  placeholder: "例：判断一个决策的好坏，看我用了什么信息，而不是看它碰巧带来了什么。" };
+
+const QUADRANT_META = {
+  deserved: { name: "应得的奖励", desc: "好决策 × 好结果", cls: "qb-deserved" },
+  badluck:  { name: "坏运气",    desc: "好决策 × 差结果", cls: "qb-badluck" },
+  goodluck: { name: "好运气",    desc: "差决策 × 好结果", cls: "qb-goodluck" },
+  fault:    { name: "咎由自取",  desc: "差决策 × 差结果", cls: "qb-fault" },
+  na:       { name: "结果中性",  desc: "四象限参考意义有限，直接进入拆解", cls: "qb-na" }
+};
+
+/* =====================================================================
+ * 状态
+ * ===================================================================== */
+
+const LS_DRAFT = "dvo_ch1_draft";
+const LS_REPORTS = "dvo_ch1_reports";
+
+let view = "home";          // home | wizard | report
+let cur = 0;                // 当前步骤索引
+let values = {};            // 所有字段值
+let reports = loadReports();
+let viewingReport = null;   // 当前查看的报告对象
+let resetScrollNext = true; // 仅在切换步骤/页面时回到顶部，字段交互保持滚动位置
+
+function loadReports() {
+  try { return JSON.parse(localStorage.getItem(LS_REPORTS)) || []; }
+  catch (e) { return []; }
+}
+function saveDraft() {
+  try { localStorage.setItem(LS_DRAFT, JSON.stringify(values)); } catch (e) {}
+}
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(LS_DRAFT)) || null; } catch (e) { return null; }
+}
+function persistReports() {
+  try { localStorage.setItem(LS_REPORTS, JSON.stringify(reports)); } catch (e) {}
+}
+
+/* =====================================================================
+ * 工具函数
+ * ===================================================================== */
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* 根据第 4 步评分 + 第 1 步结果评价，自动建议象限 */
+function suggestQuadrant() {
+  const score = values.q_score;
+  const res = values.result_eval;
+  if (score == null || !res) return null;
+  if (res === "neutral") return "na";
+  const goodDecision = Number(score) >= 3;
+  if (goodDecision && res === "good") return "deserved";
+  if (goodDecision && res === "bad") return "badluck";
+  if (!goodDecision && res === "good") return "goodluck";
+  return "fault";
+}
+
+function getQuadrant() {
+  return values.quadrant || suggestQuadrant() || null;
+}
+
+function step6Fields() {
+  const q = getQuadrant();
+  const base = q && QUADRANT_LESSONS[q] ? QUADRANT_LESSONS[q].fields : [];
+  return base.concat([COMMON_LESSON]);
+}
+
+/* =====================================================================
+ * 渲染
+ * ===================================================================== */
+
+const app = document.getElementById("app");
+
+function render() {
+  if (view === "home") renderHome();
+  else if (view === "wizard") renderWizard();
+  else if (view === "report") renderReport();
+  if (resetScrollNext) window.scrollTo(0, 0);
+  resetScrollNext = false;
+}
+
+/* 页面/步骤级跳转：渲染后回到顶部；字段交互请直接调 render() */
+function goRender() {
+  resetScrollNext = true;
+  render();
+}
+
+/* ---------- 首页 ---------- */
+function renderHome() {
+  const draft = loadDraft();
+  const hasDraft = draft && draft.title;
+  let reportsHtml = "";
+  if (reports.length === 0) {
+    reportsHtml = '<p class="empty-hint">还没有已保存的复盘。完成一次七步流程后，报告会出现在这里。</p>';
+  } else {
+    reportsHtml = reports.map((r, i) => {
+      const qm = QUADRANT_META[r.values.quadrant] || QUADRANT_META.na;
+      return '<div class="report-item">' +
+        '<div class="ri-main" data-open="' + i + '">' +
+          '<div class="ri-title">' + esc(r.values.title || "未命名复盘") + '</div>' +
+          '<div class="ri-meta">' + esc(r.date) + ' · ' + esc(qm.name) + '（' + esc(qm.desc) + '）</div>' +
+        '</div>' +
+        '<button class="btn danger-ghost" data-del="' + i + '">删除</button>' +
+      '</div>';
+    }).join("");
+  }
+
+  app.innerHTML =
+    '<div class="hero">' +
+      '<div class="kicker">基于《对赌（实践版）》第一章 · 结果导向</div>' +
+      '<h1>决策质量分离复盘</h1>' +
+      '<p>先问自己两个问题：<strong>去年的最佳决策成功了吗？去年的最差决策失败了吗？</strong></p>' +
+      '<p>大多数人都会回答“是”——因为我们习惯用结果的好坏评判决策的好坏。但一个糟糕的决策可能碰上好运气，一个好决策也可能被坏运气拖累。只看结果，你会学到错误的教训。</p>' +
+      '<div class="question-box"><strong>这个工具做什么：</strong>带你用 7 个小步骤，把一次过往经历的“决策质量”和“结果质量”拆分开，分清其中的运气与能力，最后提炼出属于你所在象限的正确教训。你不需要读过原书。</div>' +
+      '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
+        '<button class="btn" id="btn-start">' + (hasDraft ? "继续上次的复盘（" + esc(draft.title) + "）" : "开始一次复盘") + '</button>' +
+        (hasDraft ? '<button class="btn secondary" id="btn-fresh">重新开始</button>' : "") +
+      '</div>' +
+    '</div>' +
+
+    '<div class="principles">' +
+      '<h2>七步是怎么拆的（每步只做一件事）</h2>' +
+      '<ol>' +
+        '<li><strong>锚定事件</strong>——只记录事实，不做评价。</li>' +
+        '<li><strong>回到决策时刻</strong>——还原当时你知道什么、依据什么，禁止出现结果信息。</li>' +
+        '<li><strong>重建可能性</strong>——列出当时还可能发生的其他结果，把被“砍掉”的树枝粘回去。</li>' +
+        '<li><strong>评估决策质量</strong>——只凭第 2、3 步给决策本身打分，不看结果。</li>' +
+        '<li><strong>定位四象限</strong>——决策质量 × 结果质量，分清运气成分和能力成分。</li>' +
+        '<li><strong>提炼教训</strong>——按象限给出专属问题清单，取对经验。</li>' +
+        '<li><strong>复核与报告</strong>——对照复盘前后你对“最佳 / 最差决策”的判断，生成报告。</li>' +
+      '</ol>' +
+    '</div>' +
+
+    '<div class="report-list">' +
+      '<h2>已保存的复盘报告</h2>' + reportsHtml +
+    '</div>';
+
+  document.getElementById("btn-start").onclick = () => {
+    const d = loadDraft();
+    values = d || {};
+    view = "wizard"; cur = 0; goRender();
+  };
+  const fresh = document.getElementById("btn-fresh");
+  if (fresh) fresh.onclick = () => {
+    values = {}; saveDraft();
+    view = "wizard"; cur = 0; goRender();
+  };
+  app.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = () => { viewingReport = reports[Number(el.dataset.open)]; view = "report"; goRender(); };
+  });
+  app.querySelectorAll("[data-del]").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      if (!confirm("确定删除这份复盘报告吗？此操作不可撤销。")) return;
+      reports.splice(Number(el.dataset.del), 1);
+      persistReports(); render();
+    };
+  });
+}
+
+/* ---------- 向导 ---------- */
+function renderWizard() {
+  const step = STEPS[cur];
+
+  const chips = STEPS.map((s, i) => {
+    const cls = i === cur ? "active" : (i < cur ? "done" : "");
+    const numTxt = i < cur ? "✓" : String(i + 1);
+    let chip = '<span class="step-chip ' + cls + '" data-goto="' + i + '">' +
+      '<span class="num">' + numTxt + '</span>' + esc(s.title) + '</span>';
+    if (i < STEPS.length - 1) chip += '<span class="step-sep">›</span>';
+    return chip;
+  }).join("");
+
+  let fieldsHtml;
+  if (step.dynamic) {
+    const q = getQuadrant();
+    if (!q) {
+      fieldsHtml = '<div class="quadrant-note">请先回到第 5 步完成象限定位，本步的问题清单会根据象限自动生成。</div>';
+    } else {
+      const L = QUADRANT_LESSONS[q];
+      fieldsHtml = '<div class="quadrant-note"><strong>' + esc(L.label) + '</strong> — ' + esc(L.banner) + '</div>' +
+        renderFields(step6Fields());
+    }
+  } else {
+    fieldsHtml = renderFields(step.fields);
+    if (step.id === "s5") {
+      const sq = suggestQuadrant();
+      if (sq) {
+        fieldsHtml = fieldsHtml.replace("__QUAD_NOTE__",
+          '<div class="quadrant-note">根据你的第 4 步评分（' + esc(values.q_score) + ' 分）和第 1 步的结果判断，工具建议的定位是「' +
+          esc(QUADRANT_META[sq].name) + '」。你可以在下面确认或修改。</div>');
+      }
+    }
+    fieldsHtml = fieldsHtml.replace("__QUAD_NOTE__", "");
+  }
+
+  const isLast = cur === STEPS.length - 1;
+  const titleOk = !(step.id === "s1" && !values.title);
+
+  app.innerHTML =
+    '<div class="stepper">' + chips + '</div>' +
+    '<div class="step-card">' +
+      '<div class="step-head">' +
+        '<span class="tag">第 ' + (cur + 1) + ' 步 · ' + esc(step.tag) + '</span>' +
+        '<h2>' + esc(step.title) + '</h2>' +
+        '<div class="guide">' +
+          '<div class="guide-row"><span class="guide-label gl-do">做什么</span><span class="guide-text">' + esc(step.goal) + '</span></div>' +
+          '<div class="guide-row"><span class="guide-label gl-dont">不做什么</span><span class="guide-text">' + esc(step.notDo) + '</span></div>' +
+          '<div class="guide-row"><span class="guide-label gl-bridge">承上启下</span><span class="guide-text">' + esc(step.bridge) + '</span></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="step-body">' + fieldsHtml +
+        '<div class="nav-row">' +
+          (cur > 0 ? '<button class="btn secondary" id="btn-prev">← 上一步</button>' : '<button class="btn secondary" id="btn-home">← 返回首页</button>') +
+          '<span class="nav-note">' + (titleOk ? "" : "请先填写决策名称") + '</span>' +
+          '<button class="btn" id="btn-next" ' + (titleOk ? "" : "disabled") + '>' + (isLast ? "保存并生成报告" : "下一步 →") + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  bindFieldEvents();
+  app.querySelectorAll("[data-goto]").forEach(el => {
+    el.onclick = () => { cur = Number(el.dataset.goto); goRender(); };
+  });
+  const prev = document.getElementById("btn-prev");
+  if (prev) prev.onclick = () => { cur--; goRender(); };
+  const home = document.getElementById("btn-home");
+  if (home) home.onclick = () => { view = "home"; goRender(); };
+  document.getElementById("btn-next").onclick = () => {
+    if (isLast) finishReport();
+    else { cur++; goRender(); }
+  };
+}
+
+/* ---------- 字段渲染 ---------- */
+function renderFields(fields) {
+  return fields.map(f => renderField(f)).join("");
+}
+
+function renderField(f) {
+  const v = values[f.key];
+  let body = "";
+  if (f.type === "text") {
+    body = '<input type="text" data-k="' + f.key + '" value="' + esc(v || "") + '" placeholder="' + esc(f.placeholder || "") + '">';
+  } else if (f.type === "date") {
+    body = '<input type="date" data-k="' + f.key + '" value="' + esc(v || "") + '">';
+  } else if (f.type === "textarea") {
+    body = '<textarea data-k="' + f.key + '" rows="3" placeholder="' + esc(f.placeholder || "") + '">' + esc(v || "") + '</textarea>';
+  } else if (f.type === "radio") {
+    body = '<div class="radio-group">' + f.options.map(op =>
+      '<label class="radio-option ' + (v === op[0] ? "checked" : "") + '">' +
+        '<input type="radio" name="' + f.key + '" value="' + op[0] + '" ' + (v === op[0] ? "checked" : "") + '>' +
+        '<span>' + esc(op[1]) + (op[2] ? '<span class="opt-desc">' + esc(op[2]) + '</span>' : "") + '</span>' +
+      '</label>').join("") + '</div>';
+  } else if (f.type === "score") {
+    body = '<div class="score-row">' +
+      '<span class="score-endlabel">糟糕的<br>决定</span>' +
+      [0,1,2,3,4,5].map(n =>
+        '<button type="button" class="score-btn ' + (Number(v) === n ? "checked" : "") + '" data-score="' + f.key + '" data-val="' + n + '">' + n + '</button>'
+      ).join("") +
+      '<span class="score-endlabel right">伟大的<br>决定</span>' +
+    '</div>';
+  } else if (f.type === "check") {
+    const arr = Array.isArray(v) ? v : [];
+    body = f.options.map(op =>
+      '<label class="check-option ' + (arr.indexOf(op[0]) >= 0 ? "checked" : "") + '">' +
+        '<input type="checkbox" data-check="' + f.key + '" value="' + op[0] + '" ' + (arr.indexOf(op[0]) >= 0 ? "checked" : "") + '>' +
+        '<span>' + esc(op[1]) + '</span>' +
+      '</label>').join("");
+  } else if (f.type === "list") {
+    let rows = Array.isArray(v) ? v : [];
+    if (view === "wizard" && f.minRows && rows.length < f.minRows) {
+      // 进入步骤时自动补足最少行数，降低上手门槛
+      while (rows.length < f.minRows) rows.push({});
+      values[f.key] = rows; saveDraft();
+    }
+    let rowsHtml = "";
+    rows.forEach((row, ri) => {
+      let inner = "";
+      if (f.rowFields) {
+        inner = f.rowFields.map(rf => {
+          if (rf.type === "textarea") {
+            return '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="' + rf.key + '" rows="2" placeholder="' + esc(rf.placeholder || "") + '">' + esc(row[rf.key] || "") + '</textarea>';
+          } else if (rf.type === "rowchips") {
+            return '<div class="row-cmp">' + rf.options.map(op =>
+              '<span class="chip ' + (row[rf.key] === op[0] ? "checked" : "") + '" data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="' + rf.key + '" data-chip="' + op[0] + '">' + esc(op[1]) + '</span>'
+            ).join("") + '</div>';
+          }
+          return "";
+        }).join("");
+      } else {
+        inner = '<input type="text" data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t" value="' + esc(row.t || "") + '" placeholder="' + esc(f.itemPlaceholder || "") + '">';
+      }
+      rowsHtml += '<div class="list-row"><div class="list-row-top">' +
+        (f.showIndex ? '<span style="font-size:12px;color:var(--text-muted);font-weight:700;padding-top:8px;">' + (ri + 1) + '.</span>' : "") +
+        '<div class="grow">' + inner + '</div>' +
+        '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '" title="删除本条">×</button>' +
+      '</div></div>';
+    });
+    body = '<div class="list-rows" id="list-' + f.key + '">' + rowsHtml + '</div>' +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '">＋ 添加一条</button>';
+  } else if (f.type === "quadrant") {
+    const sq = suggestQuadrant();
+    const note = sq ? '__QUAD_NOTE__' : "";
+    body = note + '<div class="radio-group">' + Object.keys(QUADRANT_META).map(k => {
+      const m = QUADRANT_META[k];
+      return '<label class="radio-option ' + (v === k ? "checked" : "") + '">' +
+        '<input type="radio" name="quadrant" value="' + k + '" ' + (v === k ? "checked" : "") + '>' +
+        '<span><strong>' + m.name + '</strong><span class="opt-desc">' + esc(m.desc) + '</span></span>' +
+      '</label>';
+    }).join("") + '</div>';
+  }
+  const hint = f.hint ? '<div class="field-hint">' + esc(f.hint) + '</div>' : "";
+  return '<div class="field"><label class="field-label">' + esc(f.label) + '</label>' + body + hint + '</div>';
+}
+
+/* ---------- 字段事件 ---------- */
+function bindFieldEvents() {
+  app.querySelectorAll("input[data-k], textarea[data-k]").forEach(el => {
+    el.addEventListener("input", () => {
+      values[el.dataset.k] = el.value; saveDraft();
+      if (el.dataset.k === "title") {
+        // 实时解禁/禁用“下一步”，并同步提示文案
+        const btn = document.getElementById("btn-next");
+        const note = document.querySelector(".nav-note");
+        const ok = !!el.value.trim();
+        if (btn) btn.disabled = !ok;
+        if (note) note.textContent = ok ? "" : "请先填写决策名称";
+      }
+    });
+  });
+
+  app.querySelectorAll('input[type="radio"]').forEach(el => {
+    el.addEventListener("change", () => {
+      values[el.name] = el.value; saveDraft(); render();
+    });
+  });
+
+  app.querySelectorAll(".score-btn").forEach(el => {
+    el.onclick = () => { values[el.dataset.score] = el.dataset.val; saveDraft(); render(); };
+  });
+
+  app.querySelectorAll("input[data-check]").forEach(el => {
+    el.addEventListener("change", () => {
+      const k = el.dataset.check;
+      const arr = Array.isArray(values[k]) ? values[k].slice() : [];
+      const idx = arr.indexOf(el.value);
+      if (el.checked && idx < 0) arr.push(el.value);
+      if (!el.checked && idx >= 0) arr.splice(idx, 1);
+      values[k] = arr; saveDraft();
+      el.closest(".check-option").classList.toggle("checked", el.checked);
+    });
+  });
+
+  app.querySelectorAll("[data-addrow]").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.addrow;
+      if (!Array.isArray(values[k])) values[k] = [];
+      values[k].push({}); saveDraft(); render();
+    };
+  });
+
+  app.querySelectorAll("[data-rmrow]").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.rmrow, ri = Number(el.dataset.ri);
+      values[k].splice(ri, 1); saveDraft(); render();
+    };
+  });
+
+  app.querySelectorAll("input[data-lk], textarea[data-lk]").forEach(el => {
+    el.addEventListener("input", () => {
+      values[el.dataset.lk][Number(el.dataset.ri)][el.dataset.rk] = el.value; saveDraft();
+    });
+  });
+
+  app.querySelectorAll(".chip[data-chip]").forEach(el => {
+    el.onclick = () => {
+      const row = values[el.dataset.lk][Number(el.dataset.ri)];
+      row[el.dataset.rk] = (row[el.dataset.rk] === el.dataset.chip) ? "" : el.dataset.chip;
+      saveDraft(); render();
+    };
+  });
+}
+
+/* ---------- 完成并保存报告 ---------- */
+function finishReport() {
+  const clean = JSON.parse(JSON.stringify(values));
+  // 剔除列表里全空的行
+  Object.keys(clean).forEach(k => {
+    const arr = clean[k];
+    if (Array.isArray(arr) && arr.length && arr.every(x => typeof x === "object" && x !== null)) {
+      clean[k] = arr.filter(row => Object.values(row).some(val => val != null && val !== ""));
+    }
+  });
+  const report = {
+    id: Date.now(),
+    date: new Date().toLocaleString("zh-CN"),
+    values: clean
+  };
+  reports.unshift(report);
+  persistReports();
+  localStorage.removeItem(LS_DRAFT);
+  values = {};
+  viewingReport = report;
+  view = "report";
+  render();
+}
+
+/* ---------- 报告查看 ---------- */
+function rv(label, val, isEmpty) {
+  const has = val != null && val !== "" && !(Array.isArray(val) && val.length === 0);
+  const body = !has
+    ? '<div class="rv-value empty">（未填写）</div>'
+    : Array.isArray(val)
+      ? '<ul class="rv-list">' + val.map(x => {
+          if (typeof x === "object") {
+            const cmpMap = { better: "（比实际更好）", worse: "（比实际更差）", same: "（和实际差不多）" };
+            const cmp = x.cmp && cmpMap[x.cmp] ? '<em style="color:var(--text-muted);font-size:12px;">' + cmpMap[x.cmp] + '</em> ' : "";
+            return "<li>" + cmp + esc(x.t || "") + "</li>";
+          }
+          return "<li>" + esc(x) + "</li>";
+        }).join("") + '</ul>'
+      : '<div class="rv-value">' + esc(val) + '</div>';
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+
+function renderReport() {
+  const r = viewingReport;
+  if (!r) { view = "home"; render(); return; }
+  const v = r.values;
+  const qm = QUADRANT_META[v.quadrant || suggestQuadrantOf(v)] || QUADRANT_META.na;
+  const scoreMap = { best: "最佳决策", worst: "最差决策", neither: "两者都不是", unaware: "从没想过这个问题" };
+  const evalMap = { good: "好结果", bad: "差结果", neutral: "不好不坏" };
+
+  const s1 = '<div class="report-section"><h3><span class="sn">1</span>锚定事件</h3>' +
+    rv("决策名称", v.title) +
+    rv("决策时间", v.decision_date) +
+    rv("你当时决定了什么", v.decision_desc) +
+    rv("实际发生了什么", v.result_desc) +
+    rv("结果明朗时间", v.result_date) +
+    rv("结果评价", evalMap[v.result_eval]) +
+  '</div>';
+
+  const s2 = '<div class="report-section"><h3><span class="sn">2</span>回到决策时刻</h3>' +
+    rv("当时的目标", v.goal_desc) +
+    rv("当时掌握的信息", v.known_info) +
+    rv("决策依据", v.basis) +
+    rv("事后才知道的信息", v.unknown_after) +
+  '</div>';
+
+  const s3 = '<div class="report-section"><h3><span class="sn">3</span>重建可能性（其他“树枝”）</h3>' +
+    rv("当时还可能发生的结果", v.alternatives) +
+    rv("回顾感受", v.felt) +
+  '</div>';
+
+  const s4 = '<div class="report-section"><h3><span class="sn">4</span>决策质量评估</h3>' +
+    rv("评分（0 糟糕 ~ 5 伟大）", v.q_score != null && v.q_score !== "" ? v.q_score + " 分" : "") +
+    rv("评分理由", v.q_reason) +
+  '</div>';
+
+  const s5 = '<div class="report-section"><h3><span class="sn">5</span>运气与能力拆解</h3>' +
+    rv("运气成分（无法控制的因素）", v.luck_factors) +
+    rv("能力成分（由你决定的因素）", v.skill_factors) +
+  '</div>';
+
+  const q = v.quadrant || suggestQuadrantOf(v);
+  const lessonShort = q && QUADRANT_LESSONS[q] ? QUADRANT_LESSONS[q].label.split("（")[0] : "";
+  let s6 = '<div class="report-section"><h3><span class="sn">6</span>教训（' + esc(lessonShort) + '）</h3>';
+  if (q && QUADRANT_LESSONS[q]) {
+    QUADRANT_LESSONS[q].fields.forEach(f => {
+      if (f.type === "check") {
+        const arr = Array.isArray(v[f.key]) ? v[f.key] : [];
+        const labels = arr.map(k => {
+          const opt = f.options.find(o => o[0] === k);
+          return opt ? opt[1] : k;
+        });
+        s6 += rv(f.label, labels);
+      } else {
+        s6 += rv(f.label, v[f.key]);
+      }
+    });
+  }
+  s6 += rv("一句话教训", v.lesson) + '</div>';
+
+  const s7 = '<div class="report-section"><h3><span class="sn">7</span>前后对照</h3>' +
+    rv("复盘之前你曾把它看作", scoreMap[v.before_label]) +
+    rv("现在你认为它是", scoreMap[v.after_label]) +
+    rv("变化或不变的原因", v.shift_note) +
+  '</div>';
+
+  app.innerHTML =
+    '<div class="report-head no-print-nav">' +
+      '<div class="kicker" style="font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;">复盘报告 · 基于《对赌（实践版）》第一章</div>' +
+      '<h1>' + esc(v.title || "未命名复盘") + '</h1>' +
+      '<div class="meta">保存于 ' + esc(r.date) + '</div>' +
+      '<span class="quadrant-banner ' + qm.cls + '">' + esc(qm.name) + ' · ' + esc(qm.desc) + '</span>' +
+      (v.lesson ? '<div class="lesson-banner"><span class="lb-label">一句话教训</span>' + esc(v.lesson) + '</div>' : "") +
+      '<div class="actions-row">' +
+        '<button class="btn secondary" id="btn-copy">复制为文字</button>' +
+        '<button class="btn secondary" id="btn-print">打印 / 导出 PDF</button>' +
+        '<button class="btn secondary" id="btn-back">← 返回首页</button>' +
+      '</div>' +
+    '</div>' +
+    s1 + s2 + s3 + s4 + s5 + s6 + s7 +
+    '<div class="actions-row no-print"><button class="btn secondary" id="btn-back2">← 返回首页</button></div>';
+
+  document.getElementById("btn-back").onclick = backHome;
+  document.getElementById("btn-back2").onclick = backHome;
+  document.getElementById("btn-print").onclick = () => window.print();
+  document.getElementById("btn-copy").onclick = () => {
+    const text = reportToText(r);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => flashCopied(), () => fallbackCopy(text));
+    } else fallbackCopy(text);
+  };
+  function backHome() { view = "home"; viewingReport = null; goRender(); }
+}
+
+function suggestQuadrantOf(v) {
+  if (v.q_score == null || !v.result_eval) return null;
+  if (v.result_eval === "neutral") return "na";
+  const good = Number(v.q_score) >= 3;
+  if (good && v.result_eval === "good") return "deserved";
+  if (good && v.result_eval === "bad") return "badluck";
+  if (!good && v.result_eval === "good") return "goodluck";
+  return "fault";
+}
+
+function reportToText(r) {
+  const v = r.values;
+  const qm = QUADRANT_META[v.quadrant || suggestQuadrantOf(v)] || QUADRANT_META.na;
+  const L = [];
+  L.push("决策复盘报告：" + (v.title || "未命名"));
+  L.push("象限定位：" + qm.name + "（" + qm.desc + "）");
+  if (v.lesson) L.push("一句话教训：" + v.lesson);
+  L.push("");
+  const section = (name, pairs) => {
+    L.push("【" + name + "】");
+    pairs.forEach(([label, val]) => {
+      if (val == null || val === "" || (Array.isArray(val) && val.length === 0)) return;
+      if (Array.isArray(val)) {
+        L.push(label + "：");
+        val.forEach(x => {
+          if (typeof x === "object") {
+            const cmpMap = { better: "（比实际更好）", worse: "（比实际更差）", same: "（和实际差不多）" };
+            L.push("  - " + (x.cmp && cmpMap[x.cmp] ? cmpMap[x.cmp] : "") + (x.t || ""));
+          } else L.push("  - " + x);
+        });
+      } else L.push(label + "：" + val);
+    });
+    L.push("");
+  };
+  section("锚定事件", [
+    ["决策时间", v.decision_date], ["决策内容", v.decision_desc],
+    ["实际结果", v.result_desc], ["结果明朗时间", v.result_date],
+    ["结果评价", { good: "好结果", bad: "差结果", neutral: "不好不坏" }[v.result_eval]]
+  ]);
+  section("回到决策时刻", [
+    ["当时的目标", v.goal_desc], ["当时掌握的信息", v.known_info],
+    ["决策依据", v.basis], ["事后才知道的信息", v.unknown_after]
+  ]);
+  section("重建可能性", [["其他可能结果", v.alternatives], ["回顾感受", v.felt]]);
+  section("决策质量评估", [
+    ["评分", v.q_score != null && v.q_score !== "" ? v.q_score + " / 5" : ""], ["理由", v.q_reason]
+  ]);
+  section("运气与能力", [["运气成分", v.luck_factors], ["能力成分", v.skill_factors]]);
+  if (v.quadrant && QUADRANT_LESSONS[v.quadrant]) {
+    const pairs = QUADRANT_LESSONS[v.quadrant].fields.map(f => {
+      if (f.type === "check") {
+        const arr = Array.isArray(v[f.key]) ? v[f.key] : [];
+        return [f.label, arr.map(k => { const o = f.options.find(x => x[0] === k); return o ? o[1] : k; })];
+      }
+      return [f.label, v[f.key]];
+    });
+    section("教训（" + QUADRANT_LESSONS[v.quadrant].label.split("（")[0] + "）", pairs);
+  }
+  section("前后对照", [
+    ["复盘之前", { best: "最佳决策", worst: "最差决策", neither: "两者都不是", unaware: "从没想过" }[v.before_label]],
+    ["现在认为", { best: "最佳决策", worst: "最差决策", neither: "两者都不是", unaware: "从没想过" }[v.after_label]],
+    ["原因", v.shift_note]
+  ]);
+  return L.join("\n");
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); flashCopied(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function flashCopied() {
+  const btn = document.getElementById("btn-copy");
+  if (!btn) return;
+  const old = btn.textContent;
+  btn.textContent = "已复制 ✓";
+  setTimeout(() => { btn.textContent = old; }, 1500);
+}
+
+/* ---------- 启动 ---------- */
+render();
+</script>
+</body>
+</html>

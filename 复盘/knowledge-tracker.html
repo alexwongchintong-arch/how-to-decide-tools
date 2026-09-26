@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知识跟踪器 · 后视偏差检验 — 基于《对赌（实践版）》第二章</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f4;
+    --surface: #ffffff;
+    --border: #e6e3dd;
+    --text: #1a1a1a;
+    --text-secondary: #55534f;
+    --text-muted: #999590;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fd;
+    --success: #1a7f3f;
+    --success-soft: #e9f5ec;
+    --warning: #b85415;
+    --warning-soft: #fdf1e7;
+    --danger: #c02a2a;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  .container { max-width: none; margin: 0 auto; padding: 24px 32px 80px; }
+  .narrow { max-width: 1080px; margin-left: auto; margin-right: auto; }
+
+  .hero, .report-list {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 30px 32px; box-shadow: var(--shadow); margin-bottom: 22px;
+  }
+  .hero .kicker { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 8px; }
+  .hero h1 { font-size: 24px; font-weight: 700; margin-bottom: 14px; }
+  .hero p { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; }
+  .hero ol { padding-left: 22px; font-size: 13.5px; color: var(--text-secondary); margin: 2px 0 4px; }
+  .hero ol li { margin-bottom: 6px; }
+  .hero ol li strong { color: var(--text); }
+  .hero ol li::marker { color: var(--accent); font-weight: 700; }
+  .report-list h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; transition: background 0.12s;
+  }
+  .btn:hover { background: #1646b0; }
+  .btn.secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: #f0efec; }
+  .btn.danger-ghost { background: transparent; color: var(--danger); border: 1px solid transparent; font-weight: 500; padding: 6px 12px; }
+  .btn.danger-ghost:hover { background: #fbeaea; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .report-item { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                 padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .report-item:last-child { border-bottom: none; }
+  .report-item .ri-main { flex: 1; cursor: pointer; }
+  .report-item .ri-title { font-size: 14px; font-weight: 600; }
+  .report-item .ri-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .empty-hint { font-size: 13px; color: var(--text-muted); }
+
+  .stepper { display: flex; align-items: center; gap: 4px; margin-bottom: 22px; flex-wrap: wrap; }
+  .step-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12px; color: var(--text-muted); cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .step-chip .num { width: 17px; height: 17px; border-radius: 50%; background: #eceae6;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    font-size: 10.5px; font-weight: 700; color: var(--text-muted); }
+  .step-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .step-chip.active .num { background: var(--accent); color: #fff; }
+  .step-chip.done { color: var(--success); }
+  .step-chip.done .num { background: var(--success); color: #fff; }
+  .step-sep { color: #d4d1cb; font-size: 11px; }
+
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+               box-shadow: var(--shadow); overflow: hidden; }
+  .step-head { padding: 24px 32px 18px; border-bottom: 1px solid var(--border); }
+  .step-head .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+                    background: var(--accent-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 10px; }
+  .step-head h2 { font-size: 20px; font-weight: 700; }
+  .step-body { padding: 24px 32px 32px; }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .review-col { display: flex; flex-direction: column; gap: 16px; }
+  .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 box-shadow: var(--shadow); overflow: hidden; }
+  .review-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                 padding: 12px 18px; border-bottom: 1px solid var(--border); background: #faf9f7; }
+  .review-head h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .btn-edit { border: 1px solid var(--border); background: #fff; color: var(--accent); font-size: 12px;
+              font-weight: 600; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+  .btn-edit:hover { border-color: var(--accent); }
+  .btn-edit.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rv-nav { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rv-nav h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rv-arrow { border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-size: 14px; line-height: 1; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+  .rv-arrow:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .rv-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+  .review-body { padding: 16px 18px 20px; font-size: 13.5px; }
+  .review-body .field { margin-bottom: 16px; }
+  .review-body textarea { min-height: 54px; font-size: 13px; }
+  .locked { opacity: 0.82; }
+  .locked input, .locked textarea { background: #faf9f7; border-color: transparent; color: var(--text-secondary);
+                                    box-shadow: none !important; }
+  .locked .yn-btn, .locked .as-btn, .locked .radio-option, .locked .list-add, .locked .row-remove { pointer-events: none; }
+
+  .field { margin-bottom: 30px; }
+  .field:last-child { margin-bottom: 0; }
+  .half-row { margin-bottom: 30px; }
+  .half-row .field { margin-bottom: 0; }
+  .field-label { font-size: 13.5px; font-weight: 600; margin-bottom: 7px; display: block; }
+  .field-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--text);
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,0.12); }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
+
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-option {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.12s; font-size: 13.5px;
+  }
+  .radio-option:hover { border-color: var(--accent); }
+  .radio-option.checked { border-color: var(--accent); background: var(--accent-soft); }
+  .radio-option input { margin-top: 3px; accent-color: var(--accent); }
+  .radio-option .opt-desc { color: var(--text-muted); font-size: 12px; display: block; }
+
+  /* 概念卡（三种判断） */
+  .concept-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 26px; }
+  .concept-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; background: #fcfbfa; }
+  .concept-card h4 { font-size: 14px; margin-bottom: 6px; }
+  .concept-card .cc-def { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 8px; }
+  .concept-card .cc-ex { font-size: 12px; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 8px; }
+  .concept-card .cc-ex b { color: var(--text-secondary); font-weight: 600; }
+  .cc-knew h4 { color: var(--warning); }
+  .cc-should h4 { color: var(--danger); }
+  .cc-reasonable h4 { color: var(--success); }
+
+  /* 知识跟踪双列表 */
+  .kt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .kt-box { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; background: #fff; }
+  .kt-box h4 { font-size: 13.5px; margin-bottom: 2px; }
+  .kt-box .kt-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+  .kt-before h4 { color: var(--success); }
+  .kt-after h4 { color: var(--warning); }
+
+  /* 可知性评定 */
+  .as-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; background: #fff; }
+  .as-item { font-size: 13.5px; margin-bottom: 8px; }
+  .as-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .as-btn { padding: 4px 16px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 999px;
+            cursor: pointer; background: #fff; color: var(--text-secondary); user-select: none; }
+  .as-btn:hover { border-color: var(--accent); }
+  .as-btn.picked-yes { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .as-btn.picked-part { background: #7a86a8; border-color: #7a86a8; color: #fff; }
+  .as-btn.picked-no { background: #eceae6; border-color: #d4d1cb; color: var(--text-secondary); }
+
+  /* 动态列表 */
+  .list-rows { display: flex; flex-direction: column; gap: 10px; }
+  .list-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fcfbfa;
+              display: flex; gap: 10px; align-items: flex-start; }
+  .list-row .idx { font-size: 12px; color: var(--text-muted); font-weight: 700; padding-top: 9px; flex-shrink: 0; }
+  .list-row textarea { flex: 1; resize: none; overflow: hidden; min-height: 40px; padding: 7px 10px; font-size: 13.5px; }
+  .row-remove { flex-shrink: 0; border: none; background: transparent; color: var(--text-muted);
+                cursor: pointer; font-size: 16px; padding: 4px 6px; border-radius: 4px; line-height: 1; }
+  .row-remove:hover { color: var(--danger); background: #fbeaea; }
+  .list-add { border: 1px dashed var(--border); background: transparent; color: var(--accent);
+              padding: 9px; width: 100%; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; margin-top: 10px; }
+  .list-add:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .list-empty-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+
+  /* 四栏内的紧凑列表：把空间留给内容 */
+  .kt-col .list-row { border: none; background: transparent; padding: 2px 0; }
+  .kt-col .list-row textarea { border: none; border-bottom: 1px dashed var(--border); border-radius: 0; background: transparent; font-size: 12.5px; padding: 4px 2px; }
+  .kt-col .list-row textarea:focus { box-shadow: none; border-bottom-color: var(--accent); }
+  .kt-col .row-remove { opacity: 0; transition: opacity 0.12s; width: 20px; padding: 4px 2px; }
+  .kt-col .list-row:hover .row-remove { opacity: 1; }
+  .kt-col .list-add { border: none; background: transparent; color: var(--accent); padding: 4px 0 0; margin-top: 2px; text-align: left; font-size: 12px; }
+  .kt-col .list-add:hover { background: transparent; text-decoration: underline; }
+  .kt-col .list-empty-hint { font-size: 11.5px; }
+  .field-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+  .help-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: #fff; color: var(--accent); font-size: 11px; font-weight: 700; cursor: pointer; line-height: 1; flex-shrink: 0; padding: 0; }
+  .help-btn:hover { border-color: var(--accent); }
+  .half-row { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 26px; }
+  .half-row .field.half { flex: 1; min-width: 0; margin-bottom: 0; }
+  .sub-title { font-size: 13.5px; font-weight: 700; color: var(--text); border-left: 3px solid var(--accent); padding-left: 8px; padding-top: 2px; }
+
+  .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 12px; }
+  .nav-note { font-size: 12px; color: var(--text-muted); }
+
+  .report-head { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 padding: 28px 32px; box-shadow: var(--shadow); margin-bottom: 18px; max-width: 1080px; }
+  .report-head h1 { font-size: 21px; margin-bottom: 6px; }
+  .report-head .meta { font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
+  .verdict-banner { display: inline-block; padding: 8px 18px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; }
+  .vb-knowable { background: var(--warning-soft); color: var(--warning); }
+  .vb-unknowable { background: var(--success-soft); color: var(--success); }
+  .vb-mixed { background: var(--accent-soft); color: var(--accent); }
+  .lesson-banner { margin-top: 14px; background: #fffbeb; border: 1px solid #f2e3b3; border-radius: var(--radius-sm);
+                   padding: 12px 16px; font-size: 14px; }
+  .lesson-banner .lb-label { font-size: 11px; font-weight: 700; color: #a07d1c; display: block; margin-bottom: 3px; }
+  .report-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                    padding: 22px 28px; box-shadow: var(--shadow); margin-bottom: 16px; max-width: 1080px; }
+  .report-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .report-section h3 .sn { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+                           font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .rv-item { margin-bottom: 12px; }
+  .rv-item:last-child { margin-bottom: 0; }
+  .rv-label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+  .rv-value { font-size: 13.5px; white-space: pre-wrap; }
+  .rv-value.empty { color: var(--text-muted); font-style: italic; }
+  .rv-list { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .rv-list li { margin-bottom: 3px; }
+  .rv-as { font-size: 13.5px; margin-bottom: 6px; }
+  .rv-as b { font-weight: 600; }
+  .actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  .ktflow { display: grid; grid-template-columns: minmax(0, 1.1fr) 20px minmax(0, 1fr) 20px minmax(0, 1fr) 20px minmax(0, 1.25fr); gap: 6px; align-items: stretch; }
+  .kt-arrow { display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 17px; }
+  .kt-col { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fff; min-width: 0; }
+  .kt-col h5 { font-size: 12.5px; text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px; font-weight: 700; line-height: 1.4; }
+  .kt-col .kt-items { font-size: 12.5px; color: var(--text-secondary); }
+  .kt-col .kt-items div { margin-bottom: 4px; }
+  .kt-cap { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  @media (max-width: 920px) {
+    .split { grid-template-columns: 1fr; }
+    .kt-grid { grid-template-columns: 1fr; }
+    .ktflow { grid-template-columns: 1fr; }
+    .kt-arrow { transform: rotate(90deg); height: 18px; }
+  }
+  @media (max-width: 640px) {
+    .container { padding: 20px 14px 60px; }
+    .hero, .report-list, .step-head, .step-body, .report-head, .report-section { padding-left: 18px; padding-right: 18px; }
+    .concept-grid { grid-template-columns: 1fr; }
+    .half-row { flex-direction: column; gap: 0; }
+  }
+  @media print {
+    body { background: #fff; }
+    .actions-row, .no-print { display: none !important; }
+    .report-head, .report-section { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+ * 知识跟踪器 —— 数据
+ * 预测（knelt）：hindsight 检验的标尺是“合理可知”
+ * ===================================================================== */
+
+const CONCEPTS = {
+  knew: {
+    name: "早就知道",
+    def: "事后觉得结果显而易见：“我早就知道会这样”“我早说过”。实际结果扭曲了你对决策过程的记忆。",
+    cues: "语言表现：“我早就知道”“我早说过”“果然如此”",
+    cls: "cc-knew"
+  },
+  should: {
+    name: "本该知道",
+    def: "事后觉得你当时就应该能预料：“我本该知道”“你怎么能没想到”。常伴随自责，或对他人缺乏同情。",
+    cues: "语言表现：“我本该知道”“我早该料到”“你怎么能没想到”",
+    cls: "cc-should"
+  },
+  reasonable: {
+    name: "合理可知",
+    def: "站回决策时刻，只用手头当时掌握的信息判断：这个结果是否可以合理预见。这是检验前两种感觉是否成立的标尺。",
+    cues: "判定口径：当时的信息 + 当时的认知，不含任何事后信息",
+    cls: "cc-reasonable"
+  }
+};
+
+const STEPS = [
+  { id: "s1", title: "判断基准", tag: "认识偏差" },
+  { id: "s2", title: "知识跟踪器", tag: "完整流程" },
+  { id: "s3", title: "偏差检验", tag: "重估结论" }
+];
+
+/* 示例：按原书图形制复刻（同一个决策，两种结果） */
+function exampleFlow(resultTitle, afterItems, capLabel) {
+  const before = '<div class="kt-items"><div>1. 波士顿的平均气温、冬季的时间长度和降雪量</div><div>2. 关于工作机会的详情</div><div>3. 2 月你在波士顿逗留的经历</div></div>';
+  const after = '<div class="kt-items">' + afterItems.map(x => '<div>' + esc(x) + '</div>').join("") + '</div>';
+  return '<div class="ktflow">' +
+    '<div class="kt-col"><h5>做决策前就<br>知道的事</h5>' + before + '</div>' +
+    '<div class="kt-arrow">→</div>' +
+    '<div class="kt-col"><h5>决策</h5><div class="kt-items">接受波士顿的工作</div></div>' +
+    '<div class="kt-arrow">→</div>' +
+    '<div class="kt-col"><h5>结果</h5><div class="kt-items">' + esc(resultTitle) + '</div></div>' +
+    '<div class="kt-arrow">→</div>' +
+    '<div class="kt-col"><h5>结果出来后<br>才知道的事</h5>' + after + '</div>' +
+  '</div><div class="kt-cap">' + esc(capLabel) + '</div>';
+}
+/* 交互式四栏填写（与示例同构，从左到右） */
+function ktFlowFill(locked) {
+  const dis = locked ? " disabled" : "";
+  const col = (h, body) => '<div class="kt-col"><h5>' + h + '</h5>' + body + '</div>';
+  const arrow = '<div class="kt-arrow">→</div>';
+  const listBody = (key, ph) => {
+    const rows = Array.isArray(values[key]) ? values[key] : [];
+    const rowsHtml = rows.length === 0
+      ? '<div class="list-empty-hint">点击下方按钮添加</div>'
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<textarea data-lk="' + key + '" data-ri="' + ri + '" data-rk="t" rows="1"' + dis + ' placeholder="' + esc(ph) + '">' + esc(row.t || "") + '</textarea>' +
+            '<button type="button" class="row-remove" data-rmrow="' + key + '" data-ri="' + ri + '" title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    return rowsHtml + '<button type="button" class="list-add" data-addrow="' + key + '"' + dis + '>＋ 添加</button>';
+  };
+  return '<div class="ktflow">' +
+    col('做决策前就<br>知道的事', listBody("known_before", "例：波士顿冬季的平均气温和降雪量")) + arrow +
+    col('决策', listBody("decision_made", "例：接受波士顿的工作")) + arrow +
+    col('结果', '<textarea data-k="result_desc" rows="2"' + dis + ' placeholder="例：六个月后辞职了">' + esc(values.result_desc || "") + '</textarea>') + arrow +
+    col('结果出来后<br>才知道的事', listBody("learned_after", "例：过了整个冬天的真实经历")) +
+  '</div>';
+}
+
+/* =====================================================================
+ * 状态
+ * ===================================================================== */
+
+const LS_DRAFT = "kt_draft";
+const LS_REPORTS = "kt_reports";
+const LS_EX = "kt_examples";
+
+let view = "home";
+let cur = 0;
+let values = {};
+let reports = loadReports();
+let examples = loadExamples();   // 第 1 步的两类自述例子（长期保存）
+let viewingReport = null;
+let resetScrollNext = true;
+let reviewEdit = -1;
+let reviewIdx = null;
+let exOpen = false;             // 第 2 步示例默认收起，标签旁 ? 按钮开关
+
+function loadReports() {
+  try { return JSON.parse(localStorage.getItem(LS_REPORTS)) || []; } catch (e) { return []; }
+}
+function loadExamples() {
+  try { return JSON.parse(localStorage.getItem(LS_EX)) || {}; } catch (e) { return {}; }
+}
+function saveExamples() {
+  try { localStorage.setItem(LS_EX, JSON.stringify(examples)); } catch (e) {}
+}
+function saveDraft() {
+  try { localStorage.setItem(LS_DRAFT, JSON.stringify(values)); } catch (e) {}
+}
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(LS_DRAFT)) || null; } catch (e) { return null; }
+}
+function persistReports() {
+  try { localStorage.setItem(LS_REPORTS, JSON.stringify(reports)); } catch (e) {}
+}
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* =====================================================================
+ * 步骤字段
+ * ===================================================================== */
+
+function trackerBody(locked) {
+  let html = "";
+  html += renderField({ key: "title", label: "事件名称：给这次事件起个名字", type: "text", placeholder: "例：接受波士顿的工作" }, locked);
+  html += '<div class="field"><label class="field-label">按同样的结构，从左到右梳理你的事件：</label>' + ktFlowFill(locked) + '</div>';
+  html += '<div class="field"><div class="field-label-row">' +
+    '<label class="field-label" style="margin-bottom:0;">示例：接受波士顿的工作（同一个决策，两种结果——事前已知完全相同）</label>' +
+    '<button type="button" class="help-btn" id="btn-example" title="查看 / 收起示例">?</button>' +
+  '</div>' +
+  (exOpen ?
+    exampleFlow("六个月后辞职了", ["你在波士顿过了几个月冬天的经历", "你喜欢这份工作的程度", "六个月后你辞职并搬回了老家"], "结果 A：六个月后辞职了") +
+    '<div style="height:10px;"></div>' +
+    exampleFlow("留在了波士顿", ["你在波士顿过了几个月冬天的经历", "你热爱滑雪并且滑得很棒", "你长期留在了波士顿"], "结果 B：留在了波士顿")
+    : "") +
+  '</div>';
+  return html;
+}
+
+function step4Fields() {
+  return [
+    { key: "assess", label: "逐条检验：这些事后才知道的信息，在做决策当时是否合理可知？", type: "assess",
+      hint: "判定口径：只使用决策时刻掌握的信息与认知。若第 2 步还没填写，请先回去补充。" },
+    { type: "subtitle", label: "重新评估" },
+    { key: "predict", label: "这个结果在当时是合理可预测的吗？（早就知道）", type: "radio", half: true,
+      hint: "如果结果在当时基本不可预测，“我早就知道”只是事后错觉。",
+      options: [
+        ["predictable", "基本可预测", "当时的信息足以合理预见这个结果"],
+        ["partial", "部分可预测", "方向可预料，但程度或时机难以预见"],
+        ["unlikely", "基本不可预测", "当时几乎无法合理预见这个结果"]
+      ] },
+    { key: "should_known", label: "“我本该知道”这个判断，现在还成立吗？", type: "radio", half: true,
+      hint: "只有当时确有合理可知的信号，方可支撑“本该知道”这个判断。",
+      options: [
+        ["yes", "成立", "确实存在当时合理可知却被忽略的信号"],
+        ["partial", "部分成立", "有些环节本可想到，有些确实无法预见"],
+        ["no", "不成立", "这是典型的事后诸葛亮——当时不可能知道"]
+      ] },
+    { type: "subtitle", label: "说明你的判断" },
+    { key: "should_note_known", label: "哪些信号是当时确实合理可知的？（可按需添加多条）", type: "list", half: true,
+      itemPlaceholder: "写一条当时可知的信号", emptyHint: "点击下方按钮按需添加" },
+    { key: "should_note_hind", label: "哪些只是事后才显得必然？（可按需添加多条）", type: "list", half: true,
+      itemPlaceholder: "写一条事后才显得必然的信息", emptyHint: "点击下方按钮按需添加" },
+    { key: "kt_feel", label: "回看：结果是否显得“显而易见”？事后信息有没有混进你对“当时所知”的记忆里？（可按需添加多条）", type: "list",
+      itemPlaceholder: "写一条混入记忆的事后信息或感受", emptyHint: "点击下方按钮按需添加" },
+    { key: "conclusion", label: "一句话结论", type: "textarea",
+      placeholder: "例：这不是“本该知道”——换作当时的我，任何合理的人都会做同样的选择。" }
+  ];
+}
+
+function step1Body(locked) {
+  const lk = locked ? " locked" : "";
+  const dis = locked ? " disabled" : "";
+  const cards = Object.keys(CONCEPTS).map(k => {
+    const c = CONCEPTS[k];
+    return '<div class="concept-card ' + c.cls + '">' +
+      '<h4>' + esc(c.name) + '</h4>' +
+      '<div class="cc-def">' + esc(c.def) + '</div>' +
+      '<div class="cc-ex"><b>典型表现：</b>' + esc(c.cues) + '</div>' +
+    '</div>';
+  }).join("");
+  const refl = values.s1_reflect;
+  const card = (key, ph) => {
+    const val = values[key] != null ? values[key] : (examples[key] || "");
+    return '<textarea data-k="' + key + '" rows="2" placeholder="' + esc(ph) + '"' + (locked ? " disabled" : "") + '>' + esc(val) + '</textarea>';
+  };
+  let html =
+    '<div class="field">' +
+      '<label class="field-label">两种后视偏差，与检验它们的标尺</label>' +
+      '<div class="concept-grid">' + cards + '</div>' +
+    '</div>' +
+    '<div class="field">' +
+      '<label class="field-label">写下你自己说过的例子（会自动保存，帮助识别自己的归因习惯）</label>' +
+      '<div class="field-hint" style="margin-bottom:10px;">“我早就知道 / 我早说过”的一个例子：</div>' +
+      card("ktex_knew", "例：股价跌了——“我早就知道该早点卖”") +
+      '<div class="field-hint" style="margin:10px 0;">“我本该知道”的一个例子：</div>' +
+      card("ktex_should", "例：项目延期了——“我本该提前估到风险”") +
+    '</div>' +
+    '<div class="field">' +
+      '<label class="field-label">回看你的两个格子——你更常对自己说的是哪一种？</label>' +
+      '<div class="radio-group">' +
+        [["early", "更常说自己“早就知道”"], ["should", "更常说自己“本该知道”"], ["none", "都不常说"]].map(op =>
+          '<label class="radio-option ' + (refl === op[0] ? "checked" : "") + lk + '">' +
+            '<input type="radio" name="s1_reflect" value="' + op[0] + '" ' + (refl === op[0] ? "checked" : "") + dis + '>' +
+            '<span>' + esc(op[1]) + '</span></label>').join("") +
+      '</div>' +
+      '<div class="field-hint">大多数人更容易说出“早就知道”或“本该知道”，因为事后信息会不知不觉混进你对“当时所知”的记忆——记忆没有时间戳。</div>' +
+    '</div>';
+  if (refl === "early" || refl === "should") {
+    html += '<div class="field">' +
+      '<label class="field-label">为什么你更常说自己' + (refl === "early" ? "“早就知道”" : "“本该知道”") + '？</label>' +
+      '<textarea data-k="s1_reflect_why" rows="2" placeholder="写下你的解释——这有助于你识别自己的归因习惯。"' + (locked ? " disabled" : "") + '>' + esc(values.s1_reflect_why || "") + '</textarea>' +
+    '</div>';
+  }
+  return html;
+}
+
+function step2Body(locked) {
+  return renderFields(step2Fields(), locked);
+}
+
+/* ---------- 通用字段渲染 ---------- */
+function renderFields(fields, locked) {
+  let html = "";
+  let buf = [];
+  const flush = () => {
+    if (buf.length) { html += '<div class="half-row">' + buf.join("") + '</div>'; buf = []; }
+  };
+  fields.forEach(f => {
+    if (f.showIf && !f.showIf(values)) return;
+    if (f.half) { buf.push(renderField(f, locked)); return; }
+    flush();
+    html += renderField(f, locked);
+  });
+  flush();
+  return html;
+}
+
+function renderField(f, locked) {
+  const lk = locked ? " locked" : "";
+  const dis = locked ? " disabled" : "";
+  const v = values[f.key];
+  let body = "";
+  if (f.type === "text") {
+    body = '<input type="text" data-k="' + f.key + '"' + dis + ' value="' + esc(v || "") + '" placeholder="' + esc(f.placeholder || "") + '">';
+  } else if (f.type === "textarea") {
+    body = '<textarea data-k="' + f.key + '" rows="3"' + dis + ' placeholder="' + esc(f.placeholder || "") + '">' + esc(v || "") + '</textarea>';
+  } else if (f.type === "radio") {
+    body = '<div class="radio-group' + lk + '">' + f.options.map(op =>
+      '<label class="radio-option ' + (v === op[0] ? "checked" : "") + lk + '">' +
+        '<input type="radio" name="' + f.key + '" value="' + op[0] + '" ' + (v === op[0] ? "checked" : "") + dis + '>' +
+        '<span>' + esc(op[1]) + (op[2] ? '<span class="opt-desc">' + esc(op[2]) + '</span>' : "") + '</span>' +
+      '</label>').join("") + '</div>';
+  } else if (f.type === "subtitle") {
+    return '<div class="field' + lk + '"><div class="sub-title">' + esc(f.label) + '</div></div>';
+  } else if (f.type === "list") {
+    let rows = Array.isArray(v) ? v : [];
+    if (view === "wizard" && f.minRows && rows.length < f.minRows) {
+      while (rows.length < f.minRows) rows.push({});
+      values[f.key] = rows; saveDraft();
+    }
+    const rowsHtml = rows.length === 0
+      ? (f.emptyHint ? '<div class="list-empty-hint">' + esc(f.emptyHint) + '</div>' : "")
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<span class="idx">' + (ri + 1) + '.</span>' +
+            '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t" rows="1"' + dis + ' placeholder="' + esc(f.itemPlaceholder || "") + '">' + esc(row.t || "") + '</textarea>' +
+            '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '" title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    body = rowsHtml +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '"' + dis + '>＋ 添加一条</button>';
+  } else if (f.type === "assess") {
+    const rows = Array.isArray(values.learned_after) ? values.learned_after.filter(x => (x.t || "").trim()) : [];
+    if (rows.length === 0) {
+      body = '<div class="field-hint">第 2 步还没有填写“结果出来后才知道的事”。请先回到上一步补充，这里会自动生成逐条检验。</div>';
+    } else {
+      const ans = v || {};
+      body = rows.map((row, ri) => {
+        const a = ans["i" + ri];
+        const btn = (val, label, cls) =>
+          '<span class="as-btn ' + (a === val ? cls : "") + '" data-assess="assess" data-i="' + ri + '" data-v="' + val + '">' + label + '</span>';
+        return '<div class="as-row' + lk + '">' +
+          '<div class="as-item">' + (ri + 1) + '. ' + esc(row.t || "") + '</div>' +
+          '<div class="as-btns">' +
+            btn("yes", "当时合理可知", "picked-yes") +
+            btn("part", "部分可知", "picked-part") +
+            btn("no", "当时不可知", "picked-no") +
+          '</div>' +
+        '</div>';
+      }).join("");
+    }
+  }
+  const hint = f.hint ? '<div class="field-hint">' + esc(f.hint) + '</div>' : "";
+  const halfCls = f.half ? " half" : "";
+  return '<div class="field' + lk + halfCls + '"><label class="field-label">' + esc(f.label) + '</label>' + body + hint + '</div>';
+}
+
+/* ---------- 步骤主体分发 ---------- */
+function stepBody(i, locked) {
+  const id = STEPS[i].id;
+  if (id === "s1") return step1Body(locked);
+  if (id === "s2") return trackerBody(locked);
+  return renderFields(step4Fields(), locked);
+}
+
+/* =====================================================================
+ * 渲染
+ * ===================================================================== */
+
+const app = document.getElementById("app");
+
+function render() {
+  if (view === "home") renderHome();
+  else if (view === "wizard") renderWizard();
+  else if (view === "report") renderReport();
+  growTextareas(app);
+  if (resetScrollNext) window.scrollTo(0, 0);
+  resetScrollNext = false;
+}
+function goRender() { resetScrollNext = true; render(); }
+
+function growTextareas(root) {
+  root.querySelectorAll("textarea").forEach(growEl);
+}
+function growEl(el) {
+  el.style.height = "auto";
+  el.style.height = (el.scrollHeight + 2) + "px";
+}
+
+/* ---------- 首页 ---------- */
+function renderHome() {
+  const draft = loadDraft();
+  const hasDraft = draft && draft.title;
+  let reportsHtml = "";
+  if (reports.length === 0) {
+    reportsHtml = '<p class="empty-hint">还没有已保存的检验。完成四步流程后，报告会出现在这里。</p>';
+  } else {
+    reportsHtml = reports.map((r, i) => {
+      return '<div class="report-item">' +
+        '<div class="ri-main" data-open="' + i + '">' +
+          '<div class="ri-title">' + esc(r.values.title || "未命名检验") + '</div>' +
+          '<div class="ri-meta">' + esc(r.date) + ' · ' + esc(verdictShort(r.values)) + '</div>' +
+        '</div>' +
+        '<button class="btn danger-ghost" data-del="' + i + '">删除</button>' +
+      '</div>';
+    }).join("");
+  }
+  const exCount = ["ktex_knew", "ktex_should"].filter(k => (values["ktex_" + k] || examples[k] || "").trim()).length;
+
+  app.innerHTML =
+    '<div class="narrow">' +
+    '<div class="hero">' +
+      '<div class="kicker">基于《对赌（实践版）》第二章 · 后视偏差 · 知识跟踪器</div>' +
+      '<h1>知识跟踪器 · 后视偏差检验</h1>' +
+      '<p><strong>后视偏差</strong>，是指事后认为结果可预测或不可避免的倾向。一旦知道了结果，事后信息就会扭曲你对“当时所知”的记忆——结果显得必然，你“早就知道”或“本该知道”。记忆没有时间戳，所以需要工具来重建它。</p>' +
+      '<p>这个工具把第二章的“知识跟踪器”拆成三个小步骤：</p>' +
+      '<ol>' +
+        '<li><strong>判断基准</strong>——认识“早就知道”“本该知道”两种后视偏差，理解“合理可知”这把标尺，并写下你自己的例子（自动保存）。</li>' +
+        '<li><strong>知识跟踪器</strong>——按完整流程梳理：做决策前就知道的事 → 决策 → 结果 → 结果出来后才知道的事（内含示例引导）。</li>' +
+        '<li><strong>偏差检验</strong>——逐条判定事后信息当时是否合理可知，重估结果的可预测性，检验“本该知道”是否成立。</li>' +
+      '</ol>' +
+      '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">' +
+        '<button class="btn" id="btn-start">' + (hasDraft ? "继续上次的检验（" + esc(draft.title) + "）" : "开始一次检验") + '</button>' +
+        (hasDraft ? '<button class="btn secondary" id="btn-fresh">重新开始</button>' : "") +
+      '</div>' +
+    '</div>' +
+
+    '<div class="report-list">' +
+      '<h2>已保存的检验报告</h2>' + reportsHtml +
+      '<p class="empty-hint" style="margin-top:10px;">另外，你已在判断基准中保存 ' + exCount + ' 条自己的例子（长期保存）。</p>' +
+    '</div>' +
+    '</div>';
+
+  document.getElementById("btn-start").onclick = () => {
+    const d = loadDraft() || {};
+    ["ktex_knew", "ktex_should"].forEach(k => { if (d[k] == null && examples[k]) d[k] = examples[k]; });
+    values = d;
+    reviewEdit = -1; reviewIdx = null;
+    view = "wizard"; cur = 0; goRender();
+  };
+  const fresh = document.getElementById("btn-fresh");
+  if (fresh) fresh.onclick = () => {
+    values = {}; saveDraft();
+    reviewEdit = -1; reviewIdx = null;
+    view = "wizard"; cur = 0; goRender();
+  };
+  app.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = () => { viewingReport = reports[Number(el.dataset.open)]; view = "report"; goRender(); };
+  });
+  app.querySelectorAll("[data-del]").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      if (!confirm("确定删除这份检验报告吗？此操作不可撤销。")) return;
+      reports.splice(Number(el.dataset.del), 1);
+      persistReports(); render();
+    };
+  });
+}
+
+/* ---------- 向导 ---------- */
+function renderWizard() {
+  const chips = STEPS.map((s, i) => {
+    const cls = i === cur ? "active" : (i < cur ? "done" : "");
+    const numTxt = i < cur ? "✓" : String(i + 1);
+    let chip = '<span class="step-chip ' + cls + '" data-goto="' + i + '">' +
+      '<span class="num">' + numTxt + '</span>' + esc(s.title) + '</span>';
+    if (i < STEPS.length - 1) chip += '<span class="step-sep">›</span>';
+    return chip;
+  }).join("");
+
+  const isLast = cur === STEPS.length - 1;
+  const titleOk = !(STEPS[cur].id === "s2" && !values.title);
+  const navRow =
+    '<div class="nav-row">' +
+      (cur > 0 ? '<button class="btn secondary" id="btn-prev">← 上一步</button>' : '<button class="btn secondary" id="btn-home">← 返回首页</button>') +
+      '<span class="nav-note">' + (titleOk ? "" : "请先填写事件名称") + '</span>' +
+      '<button class="btn" id="btn-next" ' + (titleOk ? "" : "disabled") + '>' + (isLast ? "保存并生成报告" : "下一步 →") + '</button>' +
+    '</div>';
+
+  const step = STEPS[cur];
+  const leftCard =
+    '<div class="step-card">' +
+      '<div class="step-head">' +
+        '<span class="tag">第 ' + (cur + 1) + ' 步 · ' + esc(step.tag) + '</span>' +
+        '<h2>' + esc(step.title) + '</h2>' +
+      '</div>' +
+      '<div class="step-body">' + stepBody(cur, false) + navRow + '</div>' +
+    '</div>';
+
+  let rightCol = "";
+  if (cur > 0) {
+    if (reviewIdx == null || reviewIdx < 0 || reviewIdx > cur - 1) reviewIdx = cur - 1;
+    const i = reviewIdx;
+    const editing = reviewEdit === i;
+    const card =
+      '<div class="review-card">' +
+        '<div class="review-head">' +
+          '<div class="rv-nav">' +
+            (cur > 1 ? '<button class="rv-arrow" data-rvprev' + (i <= 0 ? " disabled" : "") + '>‹</button>' : "") +
+            '<h3>回顾 · 第 ' + (i + 1) + ' 步 ' + esc(STEPS[i].title) + '（' + (i + 1) + '/' + cur + '）</h3>' +
+            (cur > 1 ? '<button class="rv-arrow" data-rvnext' + (i >= cur - 1 ? " disabled" : "") + '>›</button>' : "") +
+          '</div>' +
+          '<button class="btn-edit ' + (editing ? "on" : "") + '" data-review="' + i + '">' + (editing ? "完成" : "编辑") + '</button>' +
+        '</div>' +
+        '<div class="review-body' + (editing ? "" : " locked") + '">' + stepBody(i, !editing) + '</div>' +
+      '</div>';
+    rightCol = '<div class="review-col">' + card + '</div>';
+  }
+
+  app.innerHTML =
+    '<div class="stepper">' + chips + '</div>' +
+    (cur > 0 ? '<div class="split">' + leftCard + rightCol + '</div>' : leftCard);
+
+  bindFieldEvents(app);
+  app.querySelectorAll("[data-goto]").forEach(el => {
+    el.onclick = () => { cur = Number(el.dataset.goto); reviewEdit = -1; reviewIdx = null; goRender(); };
+  });
+  app.querySelectorAll("[data-review]").forEach(el => {
+    el.onclick = () => {
+      reviewEdit = (reviewEdit === reviewIdx) ? -1 : reviewIdx;
+      render();
+    };
+  });
+  app.querySelectorAll("[data-rvprev]").forEach(el => {
+    el.onclick = () => { reviewIdx = Math.max(0, reviewIdx - 1); reviewEdit = -1; render(); };
+  });
+  app.querySelectorAll("[data-rvnext]").forEach(el => {
+    el.onclick = () => { reviewIdx = Math.min(cur - 1, reviewIdx + 1); reviewEdit = -1; render(); };
+  });
+  const prev = document.getElementById("btn-prev");
+  if (prev) prev.onclick = () => { cur--; reviewEdit = -1; reviewIdx = null; goRender(); };
+  const home = document.getElementById("btn-home");
+  if (home) home.onclick = () => { view = "home"; goRender(); };
+  document.getElementById("btn-next").onclick = () => {
+    if (isLast) finishReport();
+    else { cur++; reviewEdit = -1; reviewIdx = null; goRender(); }
+  };
+}
+
+/* ---------- 字段事件 ---------- */
+function bindFieldEvents(root) {
+  root.querySelectorAll("input[data-k], textarea[data-k]").forEach(el => {
+    el.addEventListener("input", () => {
+      const k = el.dataset.k;
+      values[k] = el.value; saveDraft();
+      growEl(el);
+      if (k.indexOf("ktex_") === 0) { examples[k] = el.value; saveExamples(); }
+      if (k === "title") {
+        const btn = document.getElementById("btn-next");
+        const note = document.querySelector(".nav-note");
+        const ok = !!el.value.trim();
+        if (btn) btn.disabled = !ok;
+        if (note) note.textContent = ok ? "" : "请先填写事件名称";
+      }
+    });
+  });
+
+  root.querySelectorAll('input[type="radio"]').forEach(el => {
+    el.addEventListener("change", () => { values[el.name] = el.value; saveDraft(); render(); });
+  });
+
+
+  root.querySelectorAll("#btn-example").forEach(el => {
+    el.onclick = () => { exOpen = !exOpen; render(); };
+  });
+
+  root.querySelectorAll(".as-btn").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.assess;
+      if (!values[k]) values[k] = {};
+      const cur0 = values[k]["i" + el.dataset.i];
+      values[k]["i" + el.dataset.i] = (cur0 === el.dataset.v) ? "" : el.dataset.v;
+      saveDraft(); render();
+    };
+  });
+
+  root.querySelectorAll("[data-addrow]").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.addrow;
+      if (!Array.isArray(values[k])) values[k] = [];
+      values[k].push({}); saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("[data-rmrow]").forEach(el => {
+    el.onclick = () => {
+      values[el.dataset.rmrow].splice(Number(el.dataset.ri), 1); saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("textarea[data-lk]").forEach(el => {
+    el.addEventListener("input", () => {
+      values[el.dataset.lk][Number(el.dataset.ri)][el.dataset.rk] = el.value; saveDraft();
+      growEl(el);
+    });
+  });
+}
+
+/* ---------- 保存报告 ---------- */
+function finishReport() {
+  const clean = JSON.parse(JSON.stringify(values));
+  Object.keys(clean).forEach(k => {
+    const arr = clean[k];
+    if (Array.isArray(arr) && arr.length && arr.every(x => typeof x === "object" && x !== null)) {
+      clean[k] = arr.filter(row => Object.values(row).some(val => val != null && val !== ""));
+    }
+  });
+  const report = { id: Date.now(), date: new Date().toLocaleString("zh-CN"), values: clean };
+  reports.unshift(report);
+  persistReports();
+  localStorage.removeItem(LS_DRAFT);
+  values = {};
+  viewingReport = report;
+  view = "report";
+  goRender();
+}
+
+/* ---------- 报告 ---------- */
+function verdictOf(v) {
+  const p = v.predict;
+  if (p === "predictable") return { t: "当时基本可预测", cls: "vb-knowable" };
+  if (p === "partial") return { t: "当时部分可预测", cls: "vb-mixed" };
+  if (p === "unlikely") return { t: "当时基本不可预测", cls: "vb-unknowable" };
+  return { t: "未完成可预测性评估", cls: "vb-mixed" };
+}
+function verdictShort(v) {
+  return verdictOf(v).t;
+}
+
+function rv(label, val) {
+  const has = val != null && val !== "" && !(Array.isArray(val) && val.length === 0);
+  const body = !has
+    ? '<div class="rv-value empty">（未填写）</div>'
+    : Array.isArray(val)
+      ? '<ul class="rv-list">' + val.map(x => "<li>" + esc(typeof x === "object" ? (x.t || "") : x) + "</li>").join("") + '</ul>'
+      : '<div class="rv-value">' + esc(val) + '</div>';
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+function rvHtml(label, html) {
+  const body = (html == null || html === "") ? '<div class="rv-value empty">（未填写）</div>' : html;
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+
+function renderReport() {
+  const r = viewingReport;
+  if (!r) { view = "home"; goRender(); return; }
+  const v = r.values;
+  const vd = verdictOf(v);
+  const predictMap = { predictable: "基本可预测", partial: "部分可预测", unlikely: "基本不可预测" };
+  const shouldMap = { yes: "成立", partial: "部分成立", no: "不成立" };
+  const asMap = { yes: "当时合理可知", part: "部分可知", no: "当时不可知" };
+
+  const reflectMap = { early: "更常说自己“早就知道”", should: "更常说自己“本该知道”", none: "都不常说" };
+  const s1 = '<div class="report-section"><h3><span class="sn">1</span>判断基准</h3>' +
+    rv("“早就知道”的例子", v.ktex_knew) +
+    rv("“本该知道”的例子", v.ktex_should) +
+    rv("更常对自己说的", reflectMap[v.s1_reflect]) +
+    rv("原因", v.s1_reflect_why) +
+  '</div>';
+
+  const s2 = '<div class="report-section"><h3><span class="sn">2</span>知识跟踪器</h3>' +
+    rv("① 做决策前就知道的事", v.known_before) +
+    rv("② 决策", v.decision_made) +
+    rv("③ 结果", v.result_desc) +
+    rv("④ 结果出来后才知道的事", v.learned_after) +
+  '</div>';
+
+  let s3 = '<div class="report-section"><h3><span class="sn">3</span>偏差检验与结论</h3>';
+  step4Fields().forEach(f => {
+    if (f.key === "conclusion" || f.type === "subtitle") return;
+    if (f.type === "radio") {
+      const opt = (f.options || []).find(o => o[0] === v[f.key]);
+      s3 += rv(f.label, opt ? opt[1] : "");
+    } else if (f.type === "assess") {
+      const rows = (Array.isArray(v.learned_after) ? v.learned_after : []).filter(x => (x.t || "").trim());
+      const ans = v.assess || {};
+      const html = rows.map((row, ri) => {
+        const a = ans["i" + ri];
+        if (!a) return "";
+        return '<div class="rv-as"><b>' + (asMap[a] || "") + '</b> — ' + esc(row.t || "") + '</div>';
+      }).join("");
+      if (html) s3 += rvHtml(f.label, html);
+    } else {
+      s3 += rv(f.label, v[f.key]);
+    }
+  });
+  s3 += '</div>';
+
+  app.innerHTML =
+    '<div class="report-head">' +
+      '<div class="kicker" style="font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;">知识跟踪器检验报告 · 基于《对赌（实践版）》第二章</div>' +
+      '<h1>' + esc(v.title || "未命名检验") + '</h1>' +
+      '<div class="meta">保存于 ' + esc(r.date) + '</div>' +
+      '<span class="verdict-banner ' + vd.cls + '">' + esc(vd.t) + '</span>' +
+      (v.conclusion ? '<div class="lesson-banner"><span class="lb-label">一句话结论</span>' + esc(v.conclusion) + '</div>' : "") +
+      '<div class="actions-row">' +
+        '<button class="btn secondary" id="btn-copy">复制为文字</button>' +
+        '<button class="btn secondary" id="btn-print">打印 / 导出 PDF</button>' +
+        '<button class="btn secondary" id="btn-back">← 返回首页</button>' +
+      '</div>' +
+    '</div>' + s1 + s2 + s3 +
+    '<div class="actions-row no-print"><button class="btn secondary" id="btn-back2">← 返回首页</button></div>';
+
+  document.getElementById("btn-back").onclick = backHome;
+  document.getElementById("btn-back2").onclick = backHome;
+  document.getElementById("btn-print").onclick = () => window.print();
+  document.getElementById("btn-copy").onclick = () => {
+    const text = reportToText(r);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => flashCopied(), () => fallbackCopy(text));
+    } else fallbackCopy(text);
+  };
+  function backHome() { view = "home"; viewingReport = null; goRender(); }
+}
+
+function reportToText(r) {
+  const v = r.values;
+  const vd = verdictOf(v);
+  const predictMap = { predictable: "基本可预测", partial: "部分可预测", unlikely: "基本不可预测" };
+  const shouldMap = { yes: "成立", partial: "部分成立", no: "不成立" };
+  const asMap = { yes: "当时合理可知", part: "部分可知", no: "当时不可知" };
+  const L = [];
+  L.push("知识跟踪器检验报告：" + (v.title || "未命名"));
+  L.push("可预测性评估：" + vd.t);
+  if (v.conclusion) L.push("一句话结论：" + v.conclusion);
+  L.push("");
+  const section = (name, pairs) => {
+    L.push("【" + name + "】");
+    pairs.forEach(([label, val]) => {
+      if (val == null || val === "" || (Array.isArray(val) && val.length === 0)) return;
+      if (Array.isArray(val)) {
+        L.push(label + "：");
+        val.forEach(x => L.push("  - " + (typeof x === "object" ? (x.t || "") : x)));
+      } else L.push(label + "：" + val);
+    });
+    L.push("");
+  };
+  section("判断基准", [
+    ["“早就知道”的例子", v.ktex_knew],
+    ["“本该知道”的例子", v.ktex_should],
+    ["更常对自己说的", reflectMap[v.s1_reflect]],
+    ["原因", v.s1_reflect_why]
+  ]);
+  section("知识跟踪器", [
+    ["① 决策前已知", v.known_before],
+    ["② 决策", v.decision_made],
+    ["③ 结果", v.result_desc],
+    ["④ 事后才知道", v.learned_after]
+  ]);
+  const xPairs = [];
+  const rows = (Array.isArray(v.learned_after) ? v.learned_after : []).filter(x => (x.t || "").trim());
+  const ans = v.assess || {};
+  rows.forEach((row, ri) => {
+    const a = ans["i" + ri];
+    if (a) xPairs.push(["事后信息检验：" + (row.t || ""), asMap[a] || ""]);
+  });
+  if (v.predict) xPairs.push(["结果可预测性（重新评估）", predictMap[v.predict] || ""]);
+  if (v.should_known) xPairs.push(["“我本该知道”是否成立", shouldMap[v.should_known] || ""]);
+  if (Array.isArray(v.kt_feel) && v.kt_feel.length) xPairs.push(["回看检验（事后信息的混入）", v.kt_feel]);
+  if (Array.isArray(v.should_note_known) && v.should_note_known.length) xPairs.push(["当时确实合理可知的信号", v.should_note_known]);
+  if (Array.isArray(v.should_note_hind) && v.should_note_hind.length) xPairs.push(["只是事后才显得必然的信息", v.should_note_hind]);
+  section("偏差检验与结论", xPairs);
+  return L.join("\n");
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); flashCopied(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function flashCopied() {
+  const btn = document.getElementById("btn-copy");
+  if (!btn) return;
+  const old = btn.textContent;
+  btn.textContent = "已复制 ✓";
+  setTimeout(() => { btn.textContent = old; }, 1500);
+}
+
+/* ---------- 启动 ---------- */
+render();
+</script>
+</body>
+</html>

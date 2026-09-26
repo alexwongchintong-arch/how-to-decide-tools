@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 本地数据导出（工具数据只存于浏览器 localStorage，若手动导出请勿提交）
+*.local.json
+backup-*.json

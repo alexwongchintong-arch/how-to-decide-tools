@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>重建决策树 · 反事实检验 — 基于《对赌（实践版）》第三章</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f4;
+    --surface: #ffffff;
+    --border: #e6e3dd;
+    --text: #1a1a1a;
+    --text-secondary: #55534f;
+    --text-muted: #999590;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fd;
+    --success: #1a7f3f;
+    --success-soft: #e9f5ec;
+    --warning: #b85415;
+    --warning-soft: #fdf1e7;
+    --danger: #c02a2a;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  .container { max-width: none; margin: 0 auto; padding: 24px 32px 80px; }
+  .narrow { max-width: 1080px; margin-left: auto; margin-right: auto; }
+
+  .hero, .report-list {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 30px 32px; box-shadow: var(--shadow); margin-bottom: 22px;
+  }
+  .hero .kicker { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 8px; }
+  .hero h1 { font-size: 24px; font-weight: 700; margin-bottom: 14px; }
+  .hero p { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; }
+  .hero ol { padding-left: 22px; font-size: 13.5px; color: var(--text-secondary); margin: 2px 0 4px; }
+  .hero ol li { margin-bottom: 6px; }
+  .hero ol li strong { color: var(--text); }
+  .hero ol li::marker { color: var(--accent); font-weight: 700; }
+  .report-list h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; transition: background 0.12s;
+  }
+  .btn:hover { background: #1646b0; }
+  .btn.secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: #f0efec; }
+  .btn.danger-ghost { background: transparent; color: var(--danger); border: 1px solid transparent; font-weight: 500; padding: 6px 12px; }
+  .btn.danger-ghost:hover { background: #fbeaea; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .report-item { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                 padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .report-item:last-child { border-bottom: none; }
+  .report-item .ri-main { flex: 1; cursor: pointer; }
+  .report-item .ri-title { font-size: 14px; font-weight: 600; }
+  .report-item .ri-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .empty-hint { font-size: 13px; color: var(--text-muted); }
+
+  .stepper { display: flex; align-items: center; gap: 4px; margin-bottom: 22px; flex-wrap: wrap; }
+  .step-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12px; color: var(--text-muted); cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .step-chip .num { width: 17px; height: 17px; border-radius: 50%; background: #eceae6;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    font-size: 10.5px; font-weight: 700; color: var(--text-muted); }
+  .step-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .step-chip.active .num { background: var(--accent); color: #fff; }
+  .step-chip.done { color: var(--success); }
+  .step-chip.done .num { background: var(--success); color: #fff; }
+  .step-sep { color: #d4d1cb; font-size: 11px; }
+
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+               box-shadow: var(--shadow); overflow: hidden; }
+  .step-head { padding: 24px 32px 18px; border-bottom: 1px solid var(--border); }
+  .step-head .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+                    background: var(--accent-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 10px; }
+  .step-head h2 { font-size: 20px; font-weight: 700; }
+  .step-body { padding: 24px 32px 32px; }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .review-col { display: flex; flex-direction: column; gap: 16px; }
+  .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 box-shadow: var(--shadow); overflow: hidden; }
+  .review-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                 padding: 12px 18px; border-bottom: 1px solid var(--border); background: #faf9f7; }
+  .review-head h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .btn-edit { border: 1px solid var(--border); background: #fff; color: var(--accent); font-size: 12px;
+              font-weight: 600; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+  .btn-edit:hover { border-color: var(--accent); }
+  .btn-edit.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rv-nav { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rv-nav h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rv-arrow { border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-size: 14px; line-height: 1; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+  .rv-arrow:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .rv-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+  .review-body { padding: 16px 18px 20px; font-size: 13.5px; }
+  .review-body .field { margin-bottom: 16px; }
+  .review-body textarea { min-height: 54px; font-size: 13px; }
+  .locked { opacity: 0.82; }
+  .locked input, .locked textarea { background: #faf9f7; border-color: transparent; color: var(--text-secondary);
+                                    box-shadow: none !important; }
+  .locked .yn-btn, .locked .as-btn, .locked .radio-option, .locked .list-add, .locked .row-remove,
+  .locked .score-btn, .locked .chip, .locked .eval-sel { pointer-events: none; }
+
+  .field { margin-bottom: 26px; }
+  .field:last-child { margin-bottom: 0; }
+  .half-row { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 26px; }
+  .half-row .field.half { flex: 1; min-width: 0; margin-bottom: 0; }
+  .sub-title { font-size: 13.5px; font-weight: 700; color: var(--text); border-left: 3px solid var(--accent); padding-left: 8px; padding-top: 2px; }
+  .prob-badge { display: inline-block; font-size: 11px; color: var(--text-muted); border: 1px solid var(--border);
+                border-radius: 999px; padding: 0 8px; margin-left: 6px; white-space: nowrap; }
+  .field-label { font-size: 13.5px; font-weight: 600; margin-bottom: 7px; display: block; }
+  .field-label .opt-name { color: var(--accent); }
+  .field-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .meta-note { background: #faf9f7; border: 1px dashed var(--border); border-radius: var(--radius-sm);
+               padding: 8px 12px; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--text);
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,0.12); }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
+
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-option {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.12s; font-size: 13.5px;
+  }
+  .radio-option:hover { border-color: var(--accent); }
+  .radio-option.checked { border-color: var(--accent); background: var(--accent-soft); }
+  .radio-option input { margin-top: 3px; accent-color: var(--accent); }
+  .radio-option .opt-desc { color: var(--text-muted); font-size: 12px; display: block; }
+
+  .score-row { display: flex; gap: 8px; align-items: center; }
+  .score-btn {
+    width: 42px; height: 42px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: #fff; font-size: 15px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+    transition: all 0.12s;
+  }
+  .score-btn:hover { border-color: var(--accent); }
+  .score-btn.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .score-endlabel { font-size: 11.5px; color: var(--text-muted); width: 74px; line-height: 1.4; }
+  .score-endlabel.right { text-align: right; color: var(--accent); }
+
+  .list-rows { display: flex; flex-direction: column; gap: 10px; }
+  .list-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fcfbfa;
+              display: flex; gap: 10px; align-items: flex-start; }
+  .list-row .idx { font-size: 12px; color: var(--text-muted); font-weight: 700; padding-top: 9px; flex-shrink: 0; }
+  .list-row textarea { flex: 1; resize: none; overflow: hidden; min-height: 40px; padding: 7px 10px; font-size: 13.5px; }
+  .row-cmp { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 4px; }
+  .row-cmp .chip { padding: 4px 12px; font-size: 12px; border: 1px solid var(--border); border-radius: 999px;
+                   cursor: pointer; background: #fff; color: var(--text-secondary); user-select: none; }
+  .row-cmp .chip:hover { border-color: var(--accent); }
+  .row-cmp .chip.checked { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .row-cmp .chip.chk-good { background: var(--success); border-color: var(--success); color: #fff; }
+  .row-cmp .chip.chk-bad { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .row-cmp .chip.chk-neutral { background: #eceae6; border-color: #d4d1cb; color: var(--text-secondary); }
+  .row-remove { flex-shrink: 0; border: none; background: transparent; color: var(--text-muted);
+                cursor: pointer; font-size: 16px; padding: 4px 6px; border-radius: 4px; line-height: 1; }
+  .row-remove:hover { color: var(--danger); background: #fbeaea; }
+  .list-add { border: 1px dashed var(--border); background: transparent; color: var(--accent);
+              padding: 9px; width: 100%; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; margin-top: 10px; }
+  .list-add:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .list-empty-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+
+  .as-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; background: #fff; }
+  .as-item { font-size: 13.5px; margin-bottom: 8px; }
+  .as-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .as-btn { padding: 4px 16px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 999px;
+            cursor: pointer; background: #fff; color: var(--text-secondary); user-select: none; }
+  .as-btn:hover { border-color: var(--accent); }
+  .as-btn.picked-1 { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .as-btn.picked-2 { background: #7a86a8; border-color: #7a86a8; color: #fff; }
+  .as-btn.picked-3 { background: #eceae6; border-color: #d4d1cb; color: var(--text-secondary); }
+
+  /* 决策树形制（复刻原书图）：决策 → 潜在结果 */
+  .dtflow { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.9fr); gap: 14px; align-items: start; }
+  .dt-decision, .dt-branches { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fff; min-width: 0; }
+  .dt-decision h5, .dt-branch-head { font-size: 12.5px; text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px; font-weight: 700; }
+  .dt-decision .dt-text { font-size: 13px; color: var(--text-secondary); }
+  .dt-actual { margin-top: 10px; border: 1px solid #f2e3b3; background: #fffbeb; border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12.5px; color: var(--text-secondary); display: flex; gap: 10px; align-items: flex-start; }
+  .dt-actual .dt-actual-main { flex: 1; min-width: 0; }
+  .dt-actual strong { display: block; font-size: 11px; color: #a07d1c; margin-bottom: 2px; }
+  .eval-tag { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 999px; margin-top: 1px; white-space: nowrap; }
+  .eval-tag.eval-good { background: var(--success-soft); color: var(--success); }
+  .eval-tag.eval-bad { background: #fbeaea; color: var(--danger); }
+  .eval-tag.eval-neutral { background: #efedea; color: var(--text-secondary); }
+  .dt-actual-note { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+  .dt-branch { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .dt-branch:last-of-type { margin-bottom: 4px; }
+  .dt-arrow { color: var(--text-muted); font-size: 16px; flex-shrink: 0; padding-top: 4px; }
+  .dt-branch-body { flex: 1; min-width: 0; }
+  .dt-branch-body textarea { width: 100%; border: none; border-bottom: 1px dashed var(--border); border-radius: 0; background: transparent; font-size: 13px; padding: 4px 2px; resize: none; overflow: hidden; min-height: 0; }
+  .dt-branch-body textarea:focus { outline: none; border-bottom-color: var(--accent); box-shadow: none; }
+  /* 潜在结果行：文本 + 概率填写 + 右侧下拉标注（选完只显示所选标签） */
+  .dt-input-row { display: flex; gap: 8px; align-items: flex-start; }
+  .dt-input-row textarea { flex: 1; min-width: 0; width: auto; }
+  .prob-input { flex-shrink: 0; width: 62px !important; padding: 5px 6px !important; font-size: 12px !important;
+                text-align: center; min-height: 0 !important; }
+  .eval-sel { flex-shrink: 0; appearance: none; -webkit-appearance: none; border: 1px dashed var(--border);
+              border-radius: 999px; font-size: 11.5px; font-weight: 600; padding: 3px 10px;
+              color: var(--text-muted); background: #fff; cursor: pointer; margin-top: 2px; max-width: 100px; }
+  .eval-sel:hover { border-color: var(--accent); }
+  .eval-sel.eval-good { border-style: solid; background: var(--success-soft); border-color: var(--success); color: var(--success); }
+  .eval-sel.eval-bad { border-style: solid; background: #fbeaea; border-color: var(--danger); color: var(--danger); }
+  .eval-sel.eval-neutral { border-style: solid; background: #efedea; border-color: #d4d1cb; color: var(--text-secondary); }
+  .eval-sel:disabled { cursor: default; }
+  .dt-text { font-size: 12.5px; color: var(--text-secondary); }
+  .dt-text div { margin-bottom: 6px; }
+  .pair-rows { display: flex; flex-direction: column; gap: 14px; }
+  .pair-row { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 30px; gap: 8px; align-items: start;
+              border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fcfbfa; }
+  .pair-cap { font-size: 11.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
+  .pair-arrow { display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 18px; padding-top: 18px; }
+  .kt-syncnote { font-size: 11.5px; color: var(--text-muted); margin-bottom: 6px; }
+  @media (max-width: 640px) {
+    .pair-row { grid-template-columns: 1fr; }
+    .pair-arrow { transform: rotate(90deg); padding: 0; justify-content: flex-start; }
+  }
+  .field-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+  .help-btn { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: #fff; color: var(--accent); font-size: 11px; font-weight: 700; cursor: pointer; line-height: 1; flex-shrink: 0; padding: 0; }
+  .help-btn:hover { border-color: var(--accent); }
+
+  .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 12px; }
+  .nav-note { font-size: 12px; color: var(--text-muted); }
+
+  .report-head { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 padding: 28px 32px; box-shadow: var(--shadow); margin-bottom: 18px; max-width: 1080px; }
+  .report-head h1 { font-size: 21px; margin-bottom: 6px; }
+  .report-head .meta { font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
+  .verdict-banner { display: inline-block; padding: 8px 18px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; }
+  .vb-success { background: var(--success-soft); color: var(--success); }
+  .vb-warning { background: var(--warning-soft); color: var(--warning); }
+  .vb-accent { background: var(--accent-soft); color: var(--accent); }
+  .vb-neutral { background: #efedea; color: var(--text-secondary); }
+  .lesson-banner { margin-top: 14px; background: #fffbeb; border: 1px solid #f2e3b3; border-radius: var(--radius-sm);
+                   padding: 12px 16px; font-size: 14px; }
+  .lesson-banner .lb-label { font-size: 11px; font-weight: 700; color: #a07d1c; display: block; margin-bottom: 3px; }
+  .report-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                    padding: 22px 28px; box-shadow: var(--shadow); margin-bottom: 16px; max-width: 1080px; }
+  .report-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .report-section h3 .sn { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+                           font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .rv-item { margin-bottom: 12px; }
+  .rv-item:last-child { margin-bottom: 0; }
+  .rv-label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+  .rv-value { font-size: 13.5px; white-space: pre-wrap; }
+  .rv-value.empty { color: var(--text-muted); font-style: italic; }
+  .rv-list { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .rv-list li { margin-bottom: 3px; }
+  .rv-as { font-size: 13.5px; margin-bottom: 6px; }
+  .rv-as b { font-weight: 600; }
+  .actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  @media (max-width: 920px) {
+    .split { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .container { padding: 20px 14px 60px; }
+    .hero, .report-list, .step-head, .step-body, .report-head, .report-section { padding-left: 18px; padding-right: 18px; }
+    .score-btn { width: 36px; height: 36px; }
+    .score-endlabel { width: 56px; }
+    .dtflow { grid-template-columns: 1fr; }
+    .half-row { flex-direction: column; gap: 0; }
+    .half-row .field.half { margin-bottom: 26px; }
+  }
+  @media print {
+    body { background: #fff; }
+    .actions-row, .no-print { display: none !important; }
+    .report-head, .report-section { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+"use strict";
+function optList(vals) { return (Array.isArray(vals.options) ? vals.options : []).filter(o => (o.t || "").trim()); }
+/* 结果好坏标签：第 1 步勾选后同步到决策树的实际结果；潜在结果由用户逐条勾选 */
+const EVAL_OPTS = [["good", "好结果"], ["bad", "差结果"], ["neutral", "不好不坏"]];
+const EVAL_LABELS = { good: "好结果", bad: "差结果", neutral: "不好不坏" };
+const TOOL = {
+  ls: "cf",
+  kicker: "基于《对赌（实践版）》第三章 · 经验悖论 · 反事实",
+  h1: "重建决策树 · 反事实检验",
+  noun: "复盘",
+  startLabel: "开始一次复盘",
+  titleKey: "title",
+  titleStep: "s1",
+  titleNote: "请先填写决策名称",
+  conclusionKey: "lesson",
+  reportKicker: "反事实检验报告 · 基于《对赌（实践版）》第三章",
+  intro: [
+    "单一的结果不能告诉你决策的好坏——但我们总把它当作唯一事实，仿佛未来只有一条路。这个工具把实际结果放回“所有可能结果”之中，重建当时的决策树，并对好结果与坏结果做对等的反事实检验。"
+  ],
+  steps: [
+    { id: "s1", title: "事件回顾", tag: "锚定事实", desc: "客观记录决策与实际结果，并给出结果好坏的第一判断。" },
+    { id: "s2", title: "重建决策树", tag: "补齐分支", desc: "列出当时还可能发生的其他结果，把被“砍掉”的树枝粘回去，并为每条潜在结果标注好坏。", noReview: true },
+    { id: "s3", title: "运气与决策", tag: "归因与提炼", desc: "对每个决策的质量分别打分，标注每棵树中比实际更好的结果，判断运气占比与重来选择，再按结果方向提炼教训。" }
+  ],
+  stepMeta: {
+    s2: "好结果与坏结果都要做反事实——人们天然只为坏结果寻找其他可能（意愿不对等），这一步要求对等。",
+    s3: "先对每个决策的质量分别打分：只使用当时掌握的信息与认知，不看结果。再回勾每棵决策树中比实际更好的潜在结果，然后判断运气占比与重来选择。最后按实际结果的方向提炼教训：好结果怕自满，坏结果怕全盘自我否定。"
+  },
+  verdict: function (v) {
+    const lsMap = { luck: "结果主要靠运气", half: "运气与决策各半", skill: "结果主要靠决策质量" };
+    const qs = Object.keys(v).filter(k => /^quality(_\d+)?$/.test(k) && v[k] != null && v[k] !== "")
+      .map(k => Number(v[k])).filter(n => !isNaN(n));
+    const hasQ = qs.length > 0;
+    if (!hasQ && !v.luck_share) return { t: "未完成运气与决策分离", cls: "vb-neutral" };
+    const avg = hasQ ? Math.round(qs.reduce((a, b) => a + b, 0) / qs.length * 10) / 10 : null;
+    const qTxt = hasQ ? "决策满意度 平均 " + avg + "/5" : "决策质量未评分";
+    const cls = v.luck_share === "luck" ? "vb-warning" : (v.luck_share === "skill" ? "vb-success" : "vb-accent");
+    return { t: qTxt + " · " + (lsMap[v.luck_share] || "运气占比未评估"), cls: cls };
+  },
+  fields: function (stepId, vals) {
+    const v = vals || {};
+    if (stepId === "s1") return [
+      { key: "title", label: "给这次决策起个名字", type: "text", placeholder: "例：接受波士顿的工作" },
+      { key: "pairs", label: "决策 → 实际结果（左侧填当时的决策，右侧填实际发生了什么；可添加多组）", type: "pairs",
+        dPlaceholder: "例：接受了波士顿的工作", rPlaceholder: "例：六个月后辞职搬回了老家",
+        emptyHint: "点击下方按钮添加“决策 → 结果”" },
+      { key: "result_eval", label: "就你当时的目标而言，这个结果是：", type: "radio", options: [["good", "好结果", "事情大体朝你希望的方向发展了"], ["bad", "差结果", "事情大体违背了你的期望"], ["neutral", "不好不坏", "谈不上好也谈不上差"]] }
+    ];
+    if (stepId === "s2") {
+      const pairs = (Array.isArray(v.pairs) ? v.pairs : []).filter(p => (p.d || "").trim() || (p.r || "").trim());
+      if (!pairs.length) return [{ type: "note", label: "还没有“决策 → 结果”", text: "请先回到第 1 步填写，这里会按每组决策自动生成一棵决策树，并把结果同步为其中一个分支。" }];
+      const fs = [];
+      pairs.forEach((p, i) => {
+        fs.push({ type: "note", label: "决策树 " + (i + 1), text: "决策：" + (p.d || "（未填）") + " —— 实际结果已同步为其中一个分支（含第 1 步的好坏标签），请再补充其他当时可能的潜在结果，并在右侧为每条标注好坏。" });
+        fs.push({ key: "tree_" + i, type: "dtree", index: i });
+      });
+      fs.push({ type: "dtex" });
+      return fs;
+    }
+    if (stepId === "s3") {
+      const fs3 = [];
+      const pairs3 = (Array.isArray(v.pairs) ? v.pairs : []).filter(p => (p.d || "").trim() || (p.r || "").trim());
+      /* 1. 对每个决策分别打分：对决策质量的满意度 */
+      fs3.push({ type: "subtitle", label: "对决策质量的满意度" });
+      if (pairs3.length) {
+        pairs3.forEach((p, i) => {
+          fs3.push({ key: "quality_" + i, type: "score",
+            label: "决策 " + (i + 1) + "：" + (p.d || "（未填）"),
+            hint: "只看当时的信息与依据（不看结果）：这个决策的质量打几分？" });
+        });
+      } else {
+        fs3.push({ key: "quality", label: "只看当时的信息与依据（不看结果）：这次决策的质量打几分？", type: "score" });
+      }
+      /* 2. 标注更好的结果（含第 2 步填写的概率） */
+      fs3.push({ type: "subtitle", label: "标注更好的结果" });
+      pairs3.forEach((p, i) => {
+        fs3.push({ key: "better_" + i, type: "betterpick", index: i,
+          label: "决策树 " + (i + 1) + "：哪些潜在结果比实际发生的更好？（可多选）",
+          hint: "同步自第 2 步决策树 " + (i + 1) + " 的全部潜在结果（含你估计的发生概率）——勾出你认为比实际结果更好的分支。" });
+      });
+      /* 3. 两个勾选问题（各自带追问） */
+      fs3.push({ key: "luck_share", label: "实际结果更多由什么决定？", type: "radio",
+        options: [["luck", "主要靠运气", "换一种做法，结果大概率明显不同"], ["half", "运气与决策各半", ""], ["skill", "主要靠决策质量", "同样的做法重复几次，结果大概率相似"]] });
+      fs3.push({ key: "responsibility", label: "重建决策树是否改变了你对自身责任的看法？", type: "textarea",
+        placeholder: "是/否？请写下你的思考",
+        showIf: (vv) => vv.luck_share === "luck" || vv.luck_share === "half" });
+      fs3.push({ key: "repeat", label: "如果重来一次，你会做同样的决策吗？", type: "radio",
+        options: [["yes", "会", ""], ["no", "不会", ""], ["unsure", "不确定", ""]] });
+      fs3.push({ key: "repeat_reason", label: "为什么这么选？写下你的原因", type: "textarea",
+        placeholder: "无论选哪个，都写下支撑这个选择的原因。",
+        showIf: (vv) => !!vv.repeat });
+      /* 4. 按结果方向提炼教训（原第 4 步） */
+      if (v.result_eval === "good") {
+        fs3.push({ key: "keep", label: "哪些做法值得在同类决策中固定下来？", type: "textarea", placeholder: "例：对关键不确定因素先做小成本实地体验。" });
+        fs3.push({ key: "improve", label: "好结果也有改进空间：哪里还能做得更好？", type: "textarea", placeholder: "例：当时可以多比较一个选项。" });
+      }
+      if (v.result_eval === "bad") {
+        fs3.push({ key: "repeat_worth", label: "剥离运气之后，这个决策值得重复吗？", type: "textarea", placeholder: "例：值得——同样的信息条件下，任何合理的人都会这么做。" });
+        fs3.push({ key: "hedge", label: "同类的坏运气再来一次，可以提前做什么准备？", type: "textarea", placeholder: "例：先租房一年再决定长住。" });
+      }
+      fs3.push({ key: "lesson", label: "一句话结论", type: "textarea", placeholder: "例：结果糟不代表决策错——把实际结果放回所有可能性里再评价。" });
+      return fs3;
+    }
+    return [];
+  }
+};
+
+/* =====================================================================
+ * 通用引擎
+ * ===================================================================== */
+
+const LS_DRAFT = TOOL.ls + "_draft";
+const LS_REPORTS = TOOL.ls + "_reports";
+const STEPS = TOOL.steps;
+
+let view = "home";
+let cur = 0;
+let values = {};
+let reports = loadReports();
+let viewingReport = null;
+let resetScrollNext = true;
+let reviewEdit = -1;
+let reviewIdx = null;
+
+function loadReports() {
+  try { return JSON.parse(localStorage.getItem(LS_REPORTS)) || []; } catch (e) { return []; }
+}
+function saveDraft() {
+  try { localStorage.setItem(LS_DRAFT, JSON.stringify(values)); } catch (e) {}
+}
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(LS_DRAFT)) || null; } catch (e) { return null; }
+}
+function persistReports() {
+  try { localStorage.setItem(LS_REPORTS, JSON.stringify(reports)); } catch (e) {}
+}
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function optionsOf(vals) {
+  return (Array.isArray(vals.options) ? vals.options : []).filter(o => (o.t || "").trim());
+}
+
+function fieldsFor(stepId, vals) {
+  return TOOL.fields(stepId, vals || {}) || [];
+}
+function stepMetaText(stepId) {
+  const m = TOOL.stepMeta && TOOL.stepMeta[stepId];
+  if (!m) return "";
+  return typeof m === "function" ? m(values) : m;
+}
+function verdictOf(v) {
+  if (TOOL.verdict) { const r = TOOL.verdict(v); if (r) return r; }
+  return { t: "未完成", cls: "vb-neutral" };
+}
+
+function render() {
+  if (view === "home") renderHome();
+  else if (view === "wizard") renderWizard();
+  else if (view === "report") renderReport();
+  growTextareas(app);
+  if (resetScrollNext) window.scrollTo(0, 0);
+  resetScrollNext = false;
+}
+function goRender() { resetScrollNext = true; render(); }
+
+function growTextareas(root) {
+  root.querySelectorAll("textarea").forEach(growEl);
+}
+function growEl(el) {
+  el.style.height = "auto";
+  el.style.height = (el.scrollHeight + 2) + "px";
+}
+
+/* ---------- 首页 ---------- */
+function renderHome() {
+  const draft = loadDraft();
+  const hasDraft = draft && draft[TOOL.titleKey];
+  let reportsHtml = "";
+  if (reports.length === 0) {
+    reportsHtml = '<p class="empty-hint">还没有已保存的' + esc(TOOL.noun) + '。完成' + STEPS.length + '步流程后，报告会出现在这里。</p>';
+  } else {
+    reportsHtml = reports.map((r, i) => {
+      const vd = verdictOf(r.values);
+      return '<div class="report-item">' +
+        '<div class="ri-main" data-open="' + i + '">' +
+          '<div class="ri-title">' + esc(r.values[TOOL.titleKey] || "未命名") + '</div>' +
+          '<div class="ri-meta">' + esc(r.date) + ' · ' + esc(vd.t) + '</div>' +
+        '</div>' +
+        '<button class="btn danger-ghost" data-del="' + i + '">删除</button>' +
+      '</div>';
+    }).join("");
+  }
+
+  app.innerHTML =
+    '<div class="narrow">' +
+    '<div class="hero">' +
+      '<div class="kicker">' + esc(TOOL.kicker) + '</div>' +
+      '<h1>' + esc(TOOL.h1) + '</h1>' +
+      TOOL.intro.map(p => '<p>' + esc(p) + '</p>').join("") +
+      '<p>这个工具把它拆成' + STEPS.length + '个小步骤：</p>' +
+      '<ol>' +
+        STEPS.map(st => '<li><strong>' + esc(st.title) + '</strong>——' + esc(st.desc) + '</li>').join("") +
+      '</ol>' +
+      '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">' +
+        '<button class="btn" id="btn-start">' + (hasDraft ? "继续上次的" + esc(TOOL.noun) + "（" + esc(draft[TOOL.titleKey]) + "）" : TOOL.startLabel) + '</button>' +
+        (hasDraft ? '<button class="btn secondary" id="btn-fresh">重新开始</button>' : "") +
+      '</div>' +
+    '</div>' +
+
+    '<div class="report-list">' +
+      '<h2>已保存的' + esc(TOOL.noun) + '报告</h2>' + reportsHtml +
+    '</div>' +
+    '</div>';
+
+  document.getElementById("btn-start").onclick = () => {
+    values = loadDraft() || {};
+    reviewEdit = -1; reviewIdx = null;
+    view = "wizard"; cur = 0; goRender();
+  };
+  const fresh = document.getElementById("btn-fresh");
+  if (fresh) fresh.onclick = () => {
+    values = {}; saveDraft();
+    reviewEdit = -1; reviewIdx = null;
+    view = "wizard"; cur = 0; goRender();
+  };
+  app.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = () => { viewingReport = reports[Number(el.dataset.open)]; view = "report"; goRender(); };
+  });
+  app.querySelectorAll("[data-del]").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      if (!confirm("确定删除这份报告吗？此操作不可撤销。")) return;
+      reports.splice(Number(el.dataset.del), 1);
+      persistReports(); render();
+    };
+  });
+}
+
+/* ---------- 向导 ---------- */
+function renderWizard() {
+  const chips = STEPS.map((s, i) => {
+    const cls = i === cur ? "active" : (i < cur ? "done" : "");
+    const numTxt = i < cur ? "✓" : String(i + 1);
+    let chip = '<span class="step-chip ' + cls + '" data-goto="' + i + '">' +
+      '<span class="num">' + numTxt + '</span>' + esc(s.title) + '</span>';
+    if (i < STEPS.length - 1) chip += '<span class="step-sep">›</span>';
+    return chip;
+  }).join("");
+
+  const isLast = cur === STEPS.length - 1;
+  const titleOk = !(STEPS[cur].id === TOOL.titleStep && !values[TOOL.titleKey]);
+  const navRow =
+    '<div class="nav-row">' +
+      (cur > 0 ? '<button class="btn secondary" id="btn-prev">← 上一步</button>' : '<button class="btn secondary" id="btn-home">← 返回首页</button>') +
+      '<span class="nav-note">' + (titleOk ? "" : esc(TOOL.titleNote)) + '</span>' +
+      '<button class="btn" id="btn-next" ' + (titleOk ? "" : "disabled") + '>' + (isLast ? "保存并生成报告" : "下一步 →") + '</button>' +
+    '</div>';
+
+  const step = STEPS[cur];
+  const meta = stepMetaText(step.id);
+  const metaHtml = meta ? '<div class="meta-note">' + esc(meta) + '</div>' : "";
+  const leftCard =
+    '<div class="step-card">' +
+      '<div class="step-head">' +
+        '<span class="tag">第 ' + (cur + 1) + ' 步 · ' + esc(step.tag) + '</span>' +
+        '<h2>' + esc(step.title) + '</h2>' +
+      '</div>' +
+      '<div class="step-body">' + metaHtml + stepBody(cur, false) + navRow + '</div>' +
+    '</div>';
+
+  let rightCol = "";
+  if (cur > 0 && !STEPS[cur].noReview) {
+    if (reviewIdx == null || reviewIdx < 0 || reviewIdx > cur - 1) reviewIdx = cur - 1;
+    const i = reviewIdx;
+    const editing = reviewEdit === i;
+    const rMeta = stepMetaText(STEPS[i].id);
+    const card =
+      '<div class="review-card">' +
+        '<div class="review-head">' +
+          '<div class="rv-nav">' +
+            (cur > 1 ? '<button class="rv-arrow" data-rvprev' + (i <= 0 ? " disabled" : "") + '>‹</button>' : "") +
+            '<h3>回顾 · 第 ' + (i + 1) + ' 步 ' + esc(STEPS[i].title) + '（' + (i + 1) + '/' + cur + '）</h3>' +
+            (cur > 1 ? '<button class="rv-arrow" data-rvnext' + (i >= cur - 1 ? " disabled" : "") + '>›</button>' : "") +
+          '</div>' +
+          '<button class="btn-edit ' + (editing ? "on" : "") + '" data-review="' + i + '">' + (editing ? "完成" : "编辑") + '</button>' +
+        '</div>' +
+        '<div class="review-body' + (editing ? "" : " locked") + '">' + (rMeta ? '<div class="meta-note">' + esc(rMeta) + '</div>' : "") + stepBody(i, !editing) + '</div>' +
+      '</div>';
+    rightCol = '<div class="review-col">' + card + '</div>';
+  }
+
+  app.innerHTML =
+    '<div class="stepper">' + chips + '</div>' +
+    (rightCol ? '<div class="split">' + leftCard + rightCol + '</div>' : leftCard);
+
+  bindFieldEvents(app);
+  app.querySelectorAll("[data-goto]").forEach(el => {
+    el.onclick = () => { cur = Number(el.dataset.goto); reviewEdit = -1; reviewIdx = null; goRender(); };
+  });
+  app.querySelectorAll("[data-review]").forEach(el => {
+    el.onclick = () => { reviewEdit = (reviewEdit === reviewIdx) ? -1 : reviewIdx; render(); };
+  });
+  app.querySelectorAll("[data-rvprev]").forEach(el => {
+    el.onclick = () => { reviewIdx = Math.max(0, reviewIdx - 1); reviewEdit = -1; render(); };
+  });
+  app.querySelectorAll("[data-rvnext]").forEach(el => {
+    el.onclick = () => { reviewIdx = Math.min(cur - 1, reviewIdx + 1); reviewEdit = -1; render(); };
+  });
+  const prev = document.getElementById("btn-prev");
+  if (prev) prev.onclick = () => { cur--; reviewEdit = -1; reviewIdx = null; goRender(); };
+  const home = document.getElementById("btn-home");
+  if (home) home.onclick = () => { view = "home"; goRender(); };
+  document.getElementById("btn-next").onclick = () => {
+    if (isLast) finishReport();
+    else { cur++; reviewEdit = -1; reviewIdx = null; goRender(); }
+  };
+}
+
+/* ---------- 第 2 步：决策树（复刻原书图） ---------- */
+let exOpen = false;
+
+function dtExampleHTML() {
+  const items = [
+    "你喜欢这份工作和这个城市，你也喜欢这里的冬天",
+    "你不喜欢这里的天气，可是工作很棒，所以你决定坚持下去",
+    "你喜欢波士顿但不喜欢这份工作。你辞职去找另一份工作",
+    "你后来获得了一个更好的机会（比如获得了波士顿或其他城市的新工作，或是重回学校学习），于是辞掉了工作",
+    "你喜欢这份工作，但波士顿的冬天太可怕了，于是辞职了",
+    "你讨厌这里的一切：工作、城市、冬天。你辞职并搬回了老家"
+  ];
+  return '<div class="meta-note" style="margin-top:10px;">' +
+    '<div class="dtflow">' +
+      '<div class="dt-decision"><h5>决策</h5><div class="dt-text">接受波士顿的工作</div></div>' +
+      '<div class="dt-branches"><div class="dt-branch-head">潜在结果</div>' +
+        items.map(x => '<div class="dt-branch"><div class="dt-arrow">→</div><div class="dt-branch-body"><div class="dt-text">' + esc(x) + '</div></div></div>').join("") +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-top:8px;">这六根树枝在决策时刻都存在——实际发生的只是其中一根。</div>' +
+  '</div>';
+}
+
+/* ---------- 步骤主体 ---------- */
+function stepBody(i, locked) {
+  return renderFields(fieldsFor(STEPS[i].id, values), locked);
+}
+
+/* ---------- 字段渲染 ---------- */
+function renderFields(fields, locked) {
+  let html = "";
+  let buf = [];
+  const flush = () => {
+    if (buf.length) { html += '<div class="half-row">' + buf.join("") + '</div>'; buf = []; }
+  };
+  fields.forEach(f => {
+    if (f.showIf && !f.showIf(values)) return;
+    if (f.half) { buf.push(renderField(f, locked)); return; }
+    flush();
+    html += renderField(f, locked);
+  });
+  flush();
+  return html;
+}
+
+function renderField(f, locked) {
+  if (f.showIf && !f.showIf(values)) return "";
+  const lk = locked ? " locked" : "";
+  const dis = locked ? " disabled" : "";
+  const v = values[f.key];
+  let body = "";
+  if (f.type === "text") {
+    body = '<input type="text" data-k="' + f.key + '"' + dis + ' value="' + esc(v || "") + '" placeholder="' + esc(f.placeholder || "") + '">';
+  } else if (f.type === "textarea") {
+    body = '<textarea data-k="' + f.key + '" rows="3"' + dis + ' placeholder="' + esc(f.placeholder || "") + '">' + esc(v || "") + '</textarea>';
+  } else if (f.type === "radio") {
+    body = '<div class="radio-group' + lk + '">' + f.options.map(op =>
+      '<label class="radio-option ' + (v === op[0] ? "checked" : "") + lk + '">' +
+        '<input type="radio" name="' + f.key + '" value="' + op[0] + '" ' + (v === op[0] ? "checked" : "") + dis + '>' +
+        '<span>' + esc(op[1]) + (op[2] ? '<span class="opt-desc">' + esc(op[2]) + '</span>' : "") + '</span>' +
+      '</label>').join("") + '</div>';
+  } else if (f.type === "score") {
+    body = '<div class="score-row' + lk + '">' +
+      '<span class="score-endlabel">低</span>' +
+      [0,1,2,3,4,5].map(n =>
+        '<button type="button" class="score-btn ' + (Number(v) === n ? "checked" : "") + '" data-score="' + f.key + '" data-val="' + n + '"' + dis + '>' + n + '</button>'
+      ).join("") +
+      '<span class="score-endlabel right">高</span>' +
+    '</div>';
+  } else if (f.type === "list") {
+    const rows = Array.isArray(v) ? v : [];
+    const rowsHtml = rows.length === 0
+      ? (f.emptyHint ? '<div class="list-empty-hint">' + esc(f.emptyHint) + '</div>' : "")
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<span class="idx">' + (ri + 1) + '.</span>' +
+            '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t" rows="1"' + dis + ' placeholder="' + esc(f.itemPlaceholder || "") + '">' + esc(row.t || "") + '</textarea>' +
+            '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '" title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    body = rowsHtml +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '"' + dis + '>＋ 添加一条</button>';
+  } else if (f.type === "chipslist") {
+    const rows = Array.isArray(v) ? v : [];
+    const rowsHtml = rows.length === 0
+      ? (f.emptyHint ? '<div class="list-empty-hint">' + esc(f.emptyHint) + '</div>' : "")
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<span class="idx">' + (ri + 1) + '.</span>' +
+            '<div class="grow" style="flex:1;display:flex;flex-direction:column;gap:8px;">' +
+              '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t" rows="1"' + dis + ' placeholder="' + esc(f.itemPlaceholder || "") + '">' + esc(row.t || "") + '</textarea>' +
+              '<div class="row-cmp">' + f.chips.map(ch =>
+                '<span class="chip ' + (row.c === ch[0] ? "checked" : "") + '" data-chip-lk="' + f.key + '" data-ri="' + ri + '" data-chip="' + ch[0] + '"' + dis + '>' + esc(ch[1]) + '</span>'
+              ).join("") + '</div>' +
+            '</div>' +
+            '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '" title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    body = rowsHtml +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '"' + dis + '>＋ 添加一条</button>';
+  } else if (f.type === "assess") {
+    const rows = f.sources.reduce((acc, k) => acc.concat((Array.isArray(values[k]) ? values[k] : []).filter(x => (x.t || "").trim())), []);
+    if (rows.length === 0) {
+      body = '<div class="field-hint">' + esc(f.emptyHint || "请先在前面填写对应的条目，这里会自动生成逐条评定。") + '</div>';
+    } else {
+      const ans = v || {};
+      body = rows.map((row, ri) => {
+        const a = ans["i" + ri];
+        return '<div class="as-row' + lk + '">' +
+          '<div class="as-item">' + (ri + 1) + '. ' + esc(row.t || "") + '</div>' +
+          '<div class="as-btns">' +
+            f.options.map(op => {
+              const pickedCls = a === op[0] ? " " + op[2] : "";
+              return '<span class="as-btn' + pickedCls + '" data-assess="' + f.key + '" data-i="' + ri + '" data-v="' + op[0] + '"' + dis + '>' + esc(op[1]) + '</span>';
+            }).join("") +
+          '</div>' +
+        '</div>';
+      }).join("");
+    }
+  } else if (f.type === "pairs") {
+    let rows = Array.isArray(v) ? v : [];
+    if (view === "wizard" && rows.length === 0) { rows = [{}]; values[f.key] = rows; saveDraft(); }
+    const rowsHtml = rows.map((row, ri) =>
+      '<div class="pair-row">' +
+        '<div class="pair-side">' +
+          '<div class="pair-cap">决策</div>' +
+          '<textarea data-lk="pairs" data-ri="' + ri + '" data-rk="d" rows="2"' + dis + ' placeholder="' + esc(f.dPlaceholder || "") + '">' + esc(row.d || "") + '</textarea>' +
+        '</div>' +
+        '<div class="pair-arrow">→</div>' +
+        '<div class="pair-side">' +
+          '<div class="pair-cap">实际结果</div>' +
+          '<textarea data-lk="pairs" data-ri="' + ri + '" data-rk="r" rows="2"' + dis + ' placeholder="' + esc(f.rPlaceholder || "") + '">' + esc(row.r || "") + '</textarea>' +
+        '</div>' +
+        '<button type="button" class="row-remove" data-rmrow="pairs" data-ri="' + ri + '" title="删除本组"' + dis + '>×</button>' +
+      '</div>').join("");
+    body = '<div class="pair-rows">' + rowsHtml + '</div>' +
+      '<button type="button" class="list-add" data-addrow="pairs"' + dis + '>＋ 添加一组“决策 → 结果”</button>';
+  } else if (f.type === "dtex") {
+    return '<div class="field' + lk + '"><div class="field-label-row">' +
+      '<label class="field-label" style="margin-bottom:0;">示例：接受波士顿的工作（决策 → 潜在结果）</label>' +
+      '<button type="button" class="help-btn" id="btn-example" title="查看 / 收起示例">?</button>' +
+    '</div>' + (exOpen ? dtExampleHTML() : "") + '</div>';
+  } else if (f.type === "dtree") {
+    const idx = f.index;
+    const pair = (Array.isArray(values.pairs) && values.pairs[idx]) || {};
+    const alts = Array.isArray(values["alts_" + idx]) ? values["alts_" + idx] : [];
+    const evalTag = values.result_eval && EVAL_LABELS[values.result_eval]
+      ? '<span class="eval-tag eval-' + values.result_eval + '">' + EVAL_LABELS[values.result_eval] + '</span>'
+      : "";
+    const actualBranch = pair.r
+      ? '<div class="dt-branch"><div class="dt-arrow">→</div><div class="dt-branch-body">' +
+          '<div class="dt-actual" style="margin:0;"><div class="dt-actual-main"><strong>实际发生（已从第 1 步同步）</strong>' + esc(pair.r) + '</div>' + evalTag + '</div>' +
+        '</div></div>'
+      : "";
+    const branchRows = alts.map((row, ri) => {
+      const selCls = row.c && EVAL_LABELS[row.c] ? " eval-" + row.c : "";
+      const opts = '<option value="">标注好坏</option>' + EVAL_OPTS.map(op =>
+        '<option value="' + op[0] + '"' + (row.c === op[0] ? " selected" : "") + '>' + op[1] + '</option>').join("");
+      return '<div class="dt-branch">' +
+        '<div class="dt-arrow">→</div>' +
+        '<div class="dt-branch-body">' +
+          '<div class="dt-input-row">' +
+            '<textarea data-lk="alts_' + idx + '" data-ri="' + ri + '" data-rk="t" rows="1"' + dis + ' placeholder="描述一个当时可能发生的结果">' + esc(row.t || "") + '</textarea>' +
+            '<input type="text" class="prob-input" data-plk="alts_' + idx + '" data-ri="' + ri + '"' + dis + ' value="' + esc(row.p || "") + '" placeholder="如 20%" title="你估计这个结果发生的概率">' +
+            '<select class="eval-sel' + selCls + '" data-evsel="alts_' + idx + '" data-ri="' + ri + '"' + dis + ' title="为这条潜在结果标注好坏">' + opts + '</select>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="row-remove" data-rmrow="alts_' + idx + '" data-ri="' + ri + '" title="删除本条"' + dis + '>×</button>' +
+      '</div>';
+    }).join("");
+    body =
+      '<div class="dtflow">' +
+        '<div class="dt-decision"><h5>决策</h5><div class="dt-text">' + esc(pair.d || "（回第 1 步填写）") + '</div></div>' +
+        '<div class="dt-branches"><div class="dt-branch-head">潜在结果</div>' +
+          (pair.r ? '<div class="kt-syncnote">第 1 步的结果已同步为其中一个潜在结果：</div>' : "") +
+          actualBranch + branchRows +
+          '<button type="button" class="list-add" data-addrow="alts_' + idx + '"' + dis + '>＋ 添加一条潜在结果</button>' +
+        '</div>' +
+      '</div>';
+  } else if (f.type === "betterpick") {
+    const idx = f.index;
+    const alts = Array.isArray(values["alts_" + idx]) ? values["alts_" + idx] : [];
+    const ans = v || {};
+    let n = 0;
+    const items = alts.map((row, ri) => {
+      if (!(row.t || "").trim()) return "";
+      n++;
+      const on = !!ans["i" + ri];
+      const prob = (row.p || "").trim() ? '<span class="prob-badge">概率 ' + esc(row.p) + '</span>' : "";
+      return '<label class="radio-option check-option ' + (on ? "checked" : "") + lk + '">' +
+        '<input type="checkbox" data-better="' + f.key + '" data-i="' + ri + '"' + (on ? " checked" : "") + dis + '>' +
+        '<span>' + esc(row.t) + prob + '</span>' +
+      '</label>';
+    }).join("");
+    body = n === 0
+      ? '<div class="field-hint">先在上方为这棵决策树补充潜在结果，这里会同步列出供勾选。</div>'
+      : '<div class="radio-group' + lk + '">' + items + '</div>';
+  } else if (f.type === "subtitle") {
+    return '<div class="field' + lk + '"><div class="sub-title">' + esc(f.label) + '</div></div>';
+  } else if (f.type === "note") {
+    return '<div class="field' + lk + '"><label class="field-label">' + esc(f.label) + '</label><div class="meta-note">' + esc(f.text || "") + '</div></div>';
+  }
+  const hint = f.hint ? '<div class="field-hint">' + esc(f.hint) + '</div>' : "";
+  const halfCls = f.half ? " half" : "";
+  return '<div class="field' + lk + halfCls + '"><label class="field-label">' + esc(f.label) + '</label>' + body + hint + '</div>';
+}
+
+/* ---------- 字段事件 ---------- */
+function bindFieldEvents(root) {
+  root.querySelectorAll("input[data-k], textarea[data-k]").forEach(el => {
+    el.addEventListener("input", () => {
+      values[el.dataset.k] = el.value; saveDraft();
+      growEl(el);
+      if (el.dataset.k === TOOL.titleKey) {
+        const btn = document.getElementById("btn-next");
+        const note = document.querySelector(".nav-note");
+        const ok = !!el.value.trim();
+        if (btn) btn.disabled = !ok;
+        if (note) note.textContent = ok ? "" : esc(TOOL.titleNote);
+      }
+    });
+  });
+
+  root.querySelectorAll('input[type="radio"]').forEach(el => {
+    el.addEventListener("change", () => { values[el.name] = el.value; saveDraft(); render(); });
+  });
+
+  root.querySelectorAll(".score-btn").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.score;
+      values[k] = (values[k] === el.dataset.val) ? "" : el.dataset.val;
+      saveDraft(); render();
+    };
+  });
+
+  root.querySelectorAll(".as-btn").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.assess;
+      if (!values[k]) values[k] = {};
+      const cur0 = values[k]["i" + el.dataset.i];
+      values[k]["i" + el.dataset.i] = (cur0 === el.dataset.v) ? "" : el.dataset.v;
+      saveDraft(); render();
+    };
+  });
+
+  root.querySelectorAll("[data-addrow]").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.addrow;
+      if (!Array.isArray(values[k])) values[k] = [];
+      values[k].push({}); saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("[data-rmrow]").forEach(el => {
+    el.onclick = () => {
+      values[el.dataset.rmrow].splice(Number(el.dataset.ri), 1); saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("textarea[data-lk]").forEach(el => {
+    el.addEventListener("input", () => {
+      values[el.dataset.lk][Number(el.dataset.ri)][el.dataset.rk] = el.value; saveDraft();
+      growEl(el);
+    });
+  });
+  root.querySelectorAll("input[data-plk]").forEach(el => {
+    el.addEventListener("input", () => {
+      values[el.dataset.plk][Number(el.dataset.ri)].p = el.value; saveDraft();
+    });
+  });
+  root.querySelectorAll("#btn-example").forEach(el => {
+    el.onclick = () => { exOpen = !exOpen; render(); };
+  });
+  root.querySelectorAll(".chip[data-chip-lk]").forEach(el => {
+    el.onclick = () => {
+      const row = values[el.dataset.chipLk][Number(el.dataset.ri)];
+      row.c = (row.c === el.dataset.chip) ? "" : el.dataset.chip;
+      saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("select[data-evsel]").forEach(el => {
+    el.addEventListener("change", () => {
+      values[el.dataset.evsel][Number(el.dataset.ri)].c = el.value;
+      saveDraft(); render();
+    });
+  });
+  root.querySelectorAll('input[type="checkbox"][data-better]').forEach(el => {
+    el.addEventListener("change", () => {
+      const k = el.dataset.better;
+      if (!values[k]) values[k] = {};
+      values[k]["i" + el.dataset.i] = el.checked;
+      saveDraft(); render();
+    });
+  });
+}
+
+/* ---------- 保存报告 ---------- */
+function finishReport() {
+  const clean = JSON.parse(JSON.stringify(values));
+  Object.keys(clean).forEach(k => {
+    const arr = clean[k];
+    if (Array.isArray(arr) && arr.length && arr.every(x => typeof x === "object" && x !== null)) {
+      clean[k] = arr.filter(row => Object.values(row).some(val => val != null && val !== ""));
+    }
+  });
+  const report = { id: Date.now(), date: new Date().toLocaleString("zh-CN"), values: clean };
+  reports.unshift(report);
+  persistReports();
+  localStorage.removeItem(LS_DRAFT);
+  values = {};
+  viewingReport = report;
+  view = "report";
+  goRender();
+}
+
+/* ---------- 报告 ---------- */
+function rv(label, val) {
+  const has = val != null && val !== "" && !(Array.isArray(val) && val.length === 0);
+  const body = !has
+    ? '<div class="rv-value empty">（未填写）</div>'
+    : Array.isArray(val)
+      ? '<ul class="rv-list">' + val.map(x => rvItemText(x)).join("") + '</ul>'
+      : '<div class="rv-value">' + esc(val) + '</div>';
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+function rvItemText(x) {
+  if (typeof x === "object") {
+    const chipMap = f_chipMap || {};
+    const chipLabel = x.c && chipMap[x.c] ? "（" + chipMap[x.c] + "）" : "";
+    return esc((x.t || "") + chipLabel);
+  }
+  return esc(x);
+}
+let f_chipMap = {};
+
+function rvHtml(label, html) {
+  const body = (html == null || html === "") ? '<div class="rv-value empty">（未填写）</div>' : html;
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+
+function renderRV(f, v) {
+  const val = v[f.key];
+  if (f.type === "pairs") {
+    const rows = (Array.isArray(val) ? val : []).filter(x => (x.d || "").trim() || (x.r || "").trim());
+    const html = rows.map(x => "<li>" + esc((x.d || "（未填）") + " → " + (x.r || "（未填）")) + "</li>").join("");
+    return rvHtml(f.label, "<ul class='rv-list'>" + html + "</ul>");
+  }
+  if (f.type === "dtree") {
+    const idx = f.index;
+    const pair = (Array.isArray(v.pairs) && v.pairs[idx]) || {};
+    const alts = Array.isArray(v["alts_" + idx]) ? v["alts_" + idx] : [];
+    const chipMap = Object.assign({ better: "比实际更好", worse: "比实际更差", same: "和实际差不多" }, EVAL_LABELS);
+    const lines = [];
+    if (pair.r) lines.push("<b>实际发生（已同步）</b> — " + esc(pair.r) + (v.result_eval && EVAL_LABELS[v.result_eval] ? "（" + EVAL_LABELS[v.result_eval] + "）" : ""));
+    alts.forEach(a => { if (a.t) lines.push(esc(a.t) + (a.p ? "（概率 " + esc(a.p) + "）" : "") + (a.c && chipMap[a.c] ? "（" + esc(chipMap[a.c]) + "）" : "")); });
+    return rvHtml(f.label, "<ul class='rv-list'>" + lines.map(l => "<li>" + l + "</li>").join("") + "</ul>");
+  }
+  if (f.type === "betterpick") {
+    const idx = f.index;
+    const alts = Array.isArray(v["alts_" + idx]) ? v["alts_" + idx] : [];
+    const ans = val || {};
+    const picked = [];
+    alts.forEach((row, ri) => { if ((row.t || "").trim() && ans["i" + ri]) picked.push(row.t + (row.p ? "（概率 " + row.p + "）" : "")); });
+    return rv(f.label, picked);
+  }
+  if (f.type === "subtitle") return "";
+  if (f.type === "radio") {
+    const opt = (f.options || []).find(o => o[0] === val);
+    return rv(f.label, opt ? opt[1] : "");
+  }
+  if (f.type === "score") {
+    return rv(f.label, (val != null && val !== "") ? val + " / 5" : "");
+  }
+  if (f.type === "list") {
+    return rv(f.label, val);
+  }
+  if (f.type === "chipslist") {
+    f_chipMap = {};
+    (f.chips || []).forEach(ch => { f_chipMap[ch[0]] = ch[1]; });
+    return rv(f.label, val);
+  }
+  if (f.type === "assess") {
+    const rows = (f.sources || []).reduce((acc, k) => acc.concat((Array.isArray(v[k]) ? v[k] : []).filter(x => (x.t || "").trim())), []);
+    const ans = val || {};
+    const html = rows.map((row, ri) => {
+      const a = ans["i" + ri];
+      if (!a) return "";
+      const opt = (f.options || []).find(o => o[0] === a);
+      return '<div class="rv-as"><b>' + esc(opt ? opt[1] : "") + '</b> — ' + esc(row.t || "") + '</div>';
+    }).join("");
+    if (html) return rvHtml(f.label, html);
+    return "";
+  }
+  if (f.type === "note" || f.type === "dtex") return "";
+  return rv(f.label, val);
+}
+
+function renderReport() {
+  const r = viewingReport;
+  if (!r) { view = "home"; goRender(); return; }
+  const v = r.values;
+  const vd = verdictOf(v);
+
+  const sections = STEPS.map((st, si) => {
+    const fs = fieldsFor(st.id, v).filter(f => f.type !== "note");
+    const body = fs.map(f => renderRV(f, v)).join("");
+    return '<div class="report-section"><h3><span class="sn">' + (si + 1) + '</span>' + esc(st.title) + '</h3>' + body + '</div>';
+  }).join("");
+
+  app.innerHTML =
+    '<div class="report-head">' +
+      '<div class="kicker" style="font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;">' + esc(TOOL.reportKicker) + '</div>' +
+      '<h1>' + esc(v[TOOL.titleKey] || "未命名") + '</h1>' +
+      '<div class="meta">保存于 ' + esc(r.date) + '</div>' +
+      (vd.t ? '<span class="verdict-banner ' + vd.cls + '">' + esc(vd.t) + '</span>' : "") +
+      (v[TOOL.conclusionKey] ? '<div class="lesson-banner"><span class="lb-label">一句话结论</span>' + esc(v[TOOL.conclusionKey]) + '</div>' : "") +
+      '<div class="actions-row">' +
+        '<button class="btn secondary" id="btn-copy">复制为文字</button>' +
+        '<button class="btn secondary" id="btn-print">打印 / 导出 PDF</button>' +
+        '<button class="btn secondary" id="btn-back">← 返回首页</button>' +
+      '</div>' +
+    '</div>' + sections +
+    '<div class="actions-row no-print"><button class="btn secondary" id="btn-back2">← 返回首页</button></div>';
+
+  document.getElementById("btn-back").onclick = backHome;
+  document.getElementById("btn-back2").onclick = backHome;
+  document.getElementById("btn-print").onclick = () => window.print();
+  document.getElementById("btn-copy").onclick = () => {
+    const text = reportToText(r);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => flashCopied(), () => fallbackCopy(text));
+    } else fallbackCopy(text);
+  };
+  function backHome() { view = "home"; viewingReport = null; goRender(); }
+}
+
+function reportToText(r) {
+  const v = r.values;
+  const vd = verdictOf(v);
+  const L = [];
+  L.push(TOOL.reportKicker.split(" · ")[0] + "：" + (v[TOOL.titleKey] || "未命名"));
+  if (vd.t) L.push("评估结论：" + vd.t);
+  if (v[TOOL.conclusionKey]) L.push("一句话结论：" + v[TOOL.conclusionKey]);
+  L.push("");
+  STEPS.forEach((st, si) => {
+    const pairs = [];
+    fieldsFor(st.id, v).forEach(f => {
+      if (f.type === "note" || f.type === "dtex" || f.type === "subtitle") return;
+      if (f.type === "pairs") {
+        const rows = (Array.isArray(v[f.key]) ? v[f.key] : []).filter(x => (x.d || "").trim() || (x.r || "").trim());
+        const items = rows.map(x => (x.d || "（未填）") + " → " + (x.r || "（未填）"));
+        if (items.length) pairs.push([f.label, items]);
+        return;
+      }
+      if (f.type === "dtree") {
+        const idx = f.index;
+        const p2 = (Array.isArray(v.pairs) && v.pairs[idx]) || {};
+        const alts = Array.isArray(v["alts_" + idx]) ? v["alts_" + idx] : [];
+        const chipMap = Object.assign({ better: "比实际更好", worse: "比实际更差", same: "和实际差不多" }, EVAL_LABELS);
+        const items = [];
+        if (p2.r) items.push("实际发生（已同步）：" + p2.r + (v.result_eval && EVAL_LABELS[v.result_eval] ? "（" + EVAL_LABELS[v.result_eval] + "）" : ""));
+        alts.forEach(a => { if (a.t) items.push(a.t + (a.p ? "（概率 " + a.p + "）" : "") + (a.c && chipMap[a.c] ? "（" + chipMap[a.c] + "）" : "")); });
+        if (items.length) pairs.push(["决策树 " + (idx + 1) + "：" + (p2.d || ""), items]);
+        return;
+      }
+      if (f.type === "betterpick") {
+        const idx = f.index;
+        const alts3 = Array.isArray(v["alts_" + idx]) ? v["alts_" + idx] : [];
+        const ans3 = v[f.key] || {};
+        const items3 = [];
+        alts3.forEach((row, ri) => { if ((row.t || "").trim() && ans3["i" + ri]) items3.push(row.t + (row.p ? "（概率 " + row.p + "）" : "")); });
+        if (items3.length) pairs.push([f.label, items3]);
+        return;
+      }
+      const val = v[f.key];
+      if (f.type === "radio") {
+        const opt = (f.options || []).find(o => o[0] === val);
+        if (opt) pairs.push([f.label, opt[1]]);
+      } else if (f.type === "score") {
+        if (val != null && val !== "") pairs.push([f.label, val + " / 5"]);
+      } else if (f.type === "assess") {
+        const rows = (f.sources || []).reduce((acc, k) => acc.concat((Array.isArray(v[k]) ? v[k] : []).filter(x => (x.t || "").trim())), []);
+        const ans = val || {};
+        rows.forEach((row, ri) => {
+          const a = ans["i" + ri];
+          if (a) {
+            const opt = (f.options || []).find(o => o[0] === a);
+            pairs.push([f.label + "：" + (row.t || ""), opt ? opt[1] : ""]);
+          }
+        });
+      } else if (f.type === "chipslist") {
+        const chipMap = {};
+        (f.chips || []).forEach(ch => { chipMap[ch[0]] = ch[1]; });
+        const items = (Array.isArray(val) ? val : []).map(x => (x.t || "") + (x.c && chipMap[x.c] ? "（" + chipMap[x.c] + "）" : ""));
+        if (items.length) pairs.push([f.label, items]);
+      } else {
+        if (val != null && val !== "" && (!Array.isArray(val) || val.length)) pairs.push([f.label, val]);
+      }
+    });
+    if (pairs.length) section_text(L, st.title, pairs);
+  });
+  return L.join("\n");
+
+  function section_text(L2, name, pairs) {
+    L2.push("【" + name + "】");
+    pairs.forEach(([label, val]) => {
+      if (val == null || val === "" || (Array.isArray(val) && val.length === 0)) return;
+      if (Array.isArray(val)) {
+        L2.push(label + "：");
+        val.forEach(x => L2.push("  - " + (typeof x === "object" ? (x.t || "") : x)));
+      } else L2.push(label + "：" + val);
+    });
+    L2.push("");
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); flashCopied(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function flashCopied() {
+  const btn = document.getElementById("btn-copy");
+  if (!btn) return;
+  const old = btn.textContent;
+  btn.textContent = "已复制 ✓";
+  setTimeout(() => { btn.textContent = old; }, 1500);
+}
+
+render();
+</script>
+</body>
+</html>

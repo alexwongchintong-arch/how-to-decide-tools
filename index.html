@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对赌决策工具集 · 基于《对赌（实践版）》</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f4f0; color: #2c2a26; line-height: 1.6;
+    min-height: 100vh; padding: 48px 20px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 40px; }
+  header h1 { font-size: 28px; letter-spacing: 2px; }
+  header p { color: #8a857c; margin-top: 8px; font-size: 14px; }
+  h2 {
+    font-size: 15px; color: #8a857c; font-weight: 600;
+    margin: 32px 0 12px; padding-left: 10px; border-left: 3px solid #b5a98c;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  a.card {
+    display: block; background: #fff; border: 1px solid #e6e2d8; border-radius: 10px;
+    padding: 16px 18px; text-decoration: none; color: inherit;
+    transition: box-shadow .15s, transform .15s;
+  }
+  a.card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); transform: translateY(-2px); }
+  .card .ch { font-size: 12px; color: #b5a98c; font-weight: 600; }
+  .card .name { font-size: 16px; font-weight: 600; margin: 4px 0 6px; }
+  .card .desc { font-size: 13px; color: #8a857c; }
+  footer { text-align: center; margin-top: 48px; font-size: 12px; color: #b3aea2; }
+  footer a { color: #8a857c; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>对赌决策工具集</h1>
+    <p>基于安妮·杜克《对赌：实践版》各章方法论的纯前端决策工具 · 数据仅存本地浏览器 · MIT 开源</p>
+  </header>
+
+  <h2>辅助决策（决策前 / 决策中）</h2>
+  <div class="grid">
+    <a class="card" href="辅助决策/six-step.html">
+      <div class="ch">第四章</div><div class="name">六步决策向导</div>
+      <div class="desc">走通标准六步决策流程，结构化输出决策依据</div>
+    </a>
+    <a class="card" href="辅助决策/perspective.html">
+      <div class="ch">第六章</div><div class="name">观点跟踪 · 内外视角校准</div>
+      <div class="desc">用外部基准概率校准内部直觉，沉淀判断基准库</div>
+    </a>
+    <a class="card" href="辅助决策/decision-pacing.html">
+      <div class="ch">第七章</div><div class="name">快速决策指南 · 快与慢的权衡</div>
+      <div class="desc">评估可逆性、影响度与截止日期，决定花多少时间</div>
+    </a>
+    <a class="card" href="辅助决策/pre-mortem.html">
+      <div class="ch">第八章</div><div class="name">事前验尸 · 倒推与承诺</div>
+      <div class="desc">假设未来已经失败，倒推原因，提前做出预案</div>
+    </a>
+  </div>
+
+  <h2>复盘（决策后）</h2>
+  <div class="grid">
+    <a class="card" href="复盘/luck-box.html">
+      <div class="ch">第一章</div><div class="name">幸运箱 · 四象限复盘</div>
+      <div class="desc">决策质量 × 结果好坏，区分运气与实力</div>
+    </a>
+    <a class="card" href="复盘/knowledge-tracker.html">
+      <div class="ch">第二章</div><div class="name">知识跟踪器 · 后视偏差检验</div>
+      <div class="desc">记录"当时知道什么"，对抗后视偏差</div>
+    </a>
+    <a class="card" href="复盘/counterfactual.html">
+      <div class="ch">第三章</div><div class="name">重建决策树 · 反事实检验</div>
+      <div class="desc">重建选项树，用反事实推演检验当时的判断</div>
+    </a>
+  </div>
+
+  <h2>组合工具箱</h2>
+  <div class="grid">
+    <a class="card" href="工具箱/辅助决策工具箱/index.html">
+      <div class="ch">四合一</div><div class="name">辅助决策工具箱</div>
+      <div class="desc">六步决策 + 内外视角 + 决策配速 + 事前验尸的完整决策向导</div>
+    </a>
+    <a class="card" href="工具箱/决策复盘工具箱/index.html">
+      <div class="ch">四阶段</div><div class="name">决策复盘工具箱</div>
+      <div class="desc">幸运箱 + 知识跟踪 + 反事实检验的完整复盘流程</div>
+    </a>
+  </div>
+
+  <footer>
+    <p>所有数据仅保存于浏览器 localStorage，无任何网络请求 · 本项目为读者学习实践作品，与书籍作者及出版方无关</p>
+  </footer>
+</div>
+</body>
+</html>

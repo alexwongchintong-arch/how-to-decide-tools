@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>幸运箱 · 四象限复盘 MVP — 基于《对赌（实践版）》第一章</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f4;
+    --surface: #ffffff;
+    --border: #e6e3dd;
+    --text: #1a1a1a;
+    --text-secondary: #55534f;
+    --text-muted: #999590;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fd;
+    --success: #1a7f3f;
+    --success-soft: #e9f5ec;
+    --warning: #b85415;
+    --warning-soft: #fdf1e7;
+    --danger: #c02a2a;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  .container { max-width: none; margin: 0 auto; padding: 24px 32px 80px; }
+  .narrow { max-width: 1080px; margin-left: auto; margin-right: auto; }
+
+  /* ---------- 首页 ---------- */
+  .hero, .quad-peek, .report-list, .principles {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 30px 32px; box-shadow: var(--shadow); margin-bottom: 22px;
+  }
+  .hero .kicker { font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 8px; }
+  .hero h1 { font-size: 24px; font-weight: 700; margin-bottom: 14px; }
+  .hero p { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; }
+  .question-box { background: var(--accent-soft); border-left: 3px solid var(--accent);
+                  border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 12px 16px; margin: 16px 0; font-size: 14px; }
+  .question-box strong { color: var(--accent); }
+  .principles h2, .report-list h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .principles ol, .hero ol { padding-left: 22px; font-size: 13.5px; color: var(--text-secondary); margin: 2px 0 4px; }
+  .principles li, .hero ol li { margin-bottom: 6px; }
+  .principles li strong, .hero ol li strong { color: var(--text); }
+  .hero ol li::marker { color: var(--accent); font-weight: 700; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; transition: background 0.12s;
+  }
+  .btn:hover { background: #1646b0; }
+  .btn.secondary { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: #f0efec; }
+  .btn.danger-ghost { background: transparent; color: var(--danger); border: 1px solid transparent; font-weight: 500; padding: 6px 12px; }
+  .btn.danger-ghost:hover { background: #fbeaea; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .report-item { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                 padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .report-item:last-child { border-bottom: none; }
+  .report-item .ri-main { flex: 1; cursor: pointer; }
+  .report-item .ri-title { font-size: 14px; font-weight: 600; }
+  .report-item .ri-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .empty-hint { font-size: 13px; color: var(--text-muted); }
+
+  /* ---------- 步骤导航 ---------- */
+  .stepper { display: flex; align-items: center; gap: 4px; margin-bottom: 22px; flex-wrap: wrap; }
+  .step-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12px; color: var(--text-muted); cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .step-chip .num { width: 17px; height: 17px; border-radius: 50%; background: #eceae6;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    font-size: 10.5px; font-weight: 700; color: var(--text-muted); }
+  .step-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .step-chip.active .num { background: var(--accent); color: #fff; }
+  .step-chip.done { color: var(--success); }
+  .step-chip.done .num { background: var(--success); color: #fff; }
+  .step-sep { color: #d4d1cb; font-size: 11px; }
+
+  /* ---------- 步骤卡片 ---------- */
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+               box-shadow: var(--shadow); overflow: hidden; }
+  .step-head { padding: 24px 32px 18px; border-bottom: 1px solid var(--border); }
+  .step-head .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+                    background: var(--accent-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 10px; }
+  .step-head h2 { font-size: 20px; font-weight: 700; }
+  .step-body { padding: 24px 32px 32px; }
+
+  /* 左右两栏（第 2 步起） */
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .review-col { display: flex; flex-direction: column; gap: 16px; }
+  .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 box-shadow: var(--shadow); overflow: hidden; }
+  .review-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                 padding: 12px 18px; border-bottom: 1px solid var(--border); background: #faf9f7; }
+  .review-head h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .btn-edit { border: 1px solid var(--border); background: #fff; color: var(--accent); font-size: 12px;
+              font-weight: 600; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+  .btn-edit:hover { border-color: var(--accent); }
+  .btn-edit.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rv-nav { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .rv-nav h3 { font-size: 13px; font-weight: 700; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rv-arrow { border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-size: 14px; line-height: 1; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+  .rv-arrow:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .rv-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+  .review-body { padding: 16px 18px 20px; font-size: 13.5px; }
+  .review-body .field { margin-bottom: 16px; }
+  .review-body textarea { min-height: 54px; font-size: 13px; }
+  .locked { opacity: 0.82; }
+  .locked input, .locked textarea { background: #faf9f7; border-color: transparent; color: var(--text-secondary);
+                                    box-shadow: none !important; }
+  .locked .yn-btn, .locked .qcell, .locked .radio-option, .locked .list-add, .locked .row-remove { pointer-events: none; }
+
+  .field { margin-bottom: 26px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { font-size: 13.5px; font-weight: 600; margin-bottom: 7px; display: block; }
+  .field-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .book-quote { background: #faf9f7; border: 1px dashed var(--border); border-radius: var(--radius-sm);
+                padding: 8px 12px; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--text);
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,0.12); }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
+
+  /* radio 选项 */
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-option {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.12s; font-size: 13.5px;
+  }
+  .radio-option:hover { border-color: var(--accent); }
+  .radio-option.checked { border-color: var(--accent); background: var(--accent-soft); }
+  .radio-option input { margin-top: 3px; accent-color: var(--accent); }
+  .radio-option .opt-desc { color: var(--text-muted); font-size: 12px; display: block; }
+
+  /* ---------- 四象限坐标图 ---------- */
+  .quad-chart {
+    display: grid;
+    grid-template-columns: 26px 1fr 1fr;
+    grid-template-rows: 1fr 1fr 26px;
+    gap: 8px;
+  }
+  .q-yaxis {
+    grid-column: 1; grid-row: 1 / 3;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 4px 0;
+  }
+  .q-yaxis .ylab { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+  .q-yaxis .ytitle { writing-mode: vertical-rl; font-size: 11.5px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.15em; }
+  .q-xaxis {
+    grid-column: 2 / 4; grid-row: 3;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 6px;
+  }
+  .q-xaxis .xlab { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+  .q-xaxis .xtitle { font-size: 11.5px; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.15em; }
+
+  .qcell {
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px;
+    background: #fcfbfa; min-height: 150px; display: flex; flex-direction: column;
+  }
+  .qc-head { display: flex; align-items: baseline; gap: 7px; margin-bottom: 4px; flex-wrap: wrap; }
+  .qc-num { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+  .qc-name { font-size: 14.5px; font-weight: 700; }
+  .qc-axis { font-size: 10.5px; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+  .qc-def { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .qc-ex { font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px; }
+  .qc-ex b { color: var(--text-secondary); font-weight: 600; }
+  .qcell textarea { min-height: 52px; font-size: 12.5px; flex: 1; }
+  .cell-deserved .qc-name { color: var(--success); }
+  .cell-goodluck .qc-name { color: var(--warning); }
+  .cell-badluck .qc-name { color: var(--accent); }
+  .cell-fault .qc-name { color: var(--danger); }
+
+  /* 点选式象限图（锁定复盘对象 / 最终判断） */
+  .qcell-pick { cursor: pointer; position: relative; transition: all 0.12s; justify-content: flex-start; }
+  .qcell-pick:hover { border-color: var(--accent); }
+  .qcell-pick.checked { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px rgba(26,86,219,0.18); }
+  .qcell-pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .qc-pickmark { font-size: 11px; color: var(--accent); font-weight: 700; margin-top: auto; padding-top: 6px; visibility: hidden; }
+  .qcell-pick.checked .qc-pickmark { visibility: visible; }
+
+  /* 是/否题组 */
+  .yn-block { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; background: #fff; }
+  .yn-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .yn-q { font-size: 13.5px; flex: 1; }
+  .yn-btns { display: flex; gap: 6px; flex-shrink: 0; }
+  .yn-btn { padding: 4px 16px; font-size: 12.5px; border: 1px solid var(--border); border-radius: 999px;
+            cursor: pointer; background: #fff; color: var(--text-secondary); user-select: none; }
+  .yn-btn:hover { border-color: var(--accent); }
+  .yn-btn.picked-yes { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .yn-btn.picked-no { background: #eceae6; border-color: #d4d1cb; color: var(--text-secondary); }
+  .yn-note { margin-top: 10px; }
+  .yn-note textarea { min-height: 48px; font-size: 13px; }
+
+  /* 动态列表（按需添加） */
+  .list-rows { display: flex; flex-direction: column; gap: 10px; }
+  .list-row { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: #fcfbfa;
+              display: flex; gap: 10px; align-items: flex-start; }
+  .list-row .idx { font-size: 12px; color: var(--text-muted); font-weight: 700; padding-top: 9px; flex-shrink: 0; }
+  .list-row textarea { flex: 1; resize: none; overflow: hidden; min-height: 40px; padding: 7px 10px; font-size: 13.5px; }
+  .row-remove { flex-shrink: 0; border: none; background: transparent; color: var(--text-muted);
+                cursor: pointer; font-size: 16px; padding: 4px 6px; border-radius: 4px; line-height: 1; }
+  .row-remove:hover { color: var(--danger); background: #fbeaea; }
+  .list-add { border: 1px dashed var(--border); background: transparent; color: var(--accent);
+              padding: 9px; width: 100%; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; margin-top: 10px; }
+  .list-add:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .list-empty-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+
+  .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 12px; }
+  .nav-note { font-size: 12px; color: var(--text-muted); }
+
+  /* ---------- 报告 ---------- */
+  .report-head { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                 padding: 28px 32px; box-shadow: var(--shadow); margin-bottom: 18px; max-width: 1080px; }
+  .report-head h1 { font-size: 21px; margin-bottom: 6px; }
+  .report-head .meta { font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
+  .quadrant-banner { display: inline-block; padding: 8px 18px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; }
+  .qb-deserved { background: var(--success-soft); color: var(--success); }
+  .qb-goodluck { background: var(--warning-soft); color: var(--warning); }
+  .qb-badluck { background: var(--accent-soft); color: var(--accent); }
+  .qb-fault { background: #fbeaea; color: var(--danger); }
+  .lesson-banner { margin-top: 14px; background: #fffbeb; border: 1px solid #f2e3b3; border-radius: var(--radius-sm);
+                   padding: 12px 16px; font-size: 14px; }
+  .lesson-banner .lb-label { font-size: 11px; font-weight: 700; color: #a07d1c; display: block; margin-bottom: 3px; }
+  .report-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                    padding: 22px 28px; box-shadow: var(--shadow); margin-bottom: 16px; max-width: 1080px; }
+  .report-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .report-section h3 .sn { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+                           font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .rv-item { margin-bottom: 12px; }
+  .rv-item:last-child { margin-bottom: 0; }
+  .rv-label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+  .rv-value { font-size: 13.5px; white-space: pre-wrap; }
+  .rv-value.empty { color: var(--text-muted); font-style: italic; }
+  .rv-list { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .rv-list li { margin-bottom: 3px; }
+  .rv-yn { font-size: 13.5px; margin-bottom: 6px; }
+  .rv-yn b { font-weight: 600; }
+  .actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+  @media (max-width: 920px) {
+    .split { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .container { padding: 20px 14px 60px; }
+    .hero, .principles, .report-list, .step-head, .step-body, .report-head, .report-section, .quad-peek { padding-left: 18px; padding-right: 18px; }
+  }
+  @media print {
+    body { background: #fff; }
+    .actions-row, .no-print { display: none !important; }
+    .report-head, .report-section { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+ * 幸运箱四象限 —— 数据
+ * 坐标约定：X 轴 = 结果好坏（左 好 → 右 坏）；Y 轴 = 决策质量（上 好 → 下 坏）
+ *   第一象限（右上）＝ 坏运气；第二象限（左上）＝ 应得的奖励
+ *   第三象限（左下）＝ 好运气；第四象限（右下）＝ 咎由自取
+ * ===================================================================== */
+
+const QUADS = {
+  badluck: {
+    name: "坏运气", num: "Ⅰ",
+    def: "你做出的高质量决策，产生了坏结果。",
+    ex: "绿灯亮起，你正常起步行驶，却因为其他车辆突然汇入，发生了交通意外。这是一个坏结果，但不代表遵守交通规则是糟糕的决策。",
+    axis: "好决策 × 坏结果", cls: "qb-badluck", cellCls: "cell-badluck",
+    exHint: "生活一塌糊涂，但你做的决策很好"
+  },
+  deserved: {
+    name: "应得的奖励", num: "Ⅱ",
+    def: "你做出的高质量决策，产生了好结果。",
+    ex: "你遵照绿灯指示安全通过了十字路口。",
+    axis: "好决策 × 好结果", cls: "qb-deserved", cellCls: "cell-deserved",
+    exHint: "生活万事顺利，且你所做的决策也很好"
+  },
+  goodluck: {
+    name: "好运气", num: "Ⅲ",
+    def: "你做出的低质量决策，产生了好结果。",
+    ex: "你等绿灯时沉浸在手机里没注意到绿灯变亮，起步晚了，却恰巧避开了一辆闯红灯冲进路口的汽车，逃过一场事故。这并不代表一边开车一边刷手机是个好决策——你只是运气好。",
+    axis: "坏决策 × 好结果", cls: "qb-goodluck", cellCls: "cell-goodluck",
+    exHint: "生活万事顺利，但你做的决策很糟糕"
+  },
+  fault: {
+    name: "咎由自取", num: "Ⅳ",
+    def: "你做出的低质量决策，产生了坏结果。",
+    ex: "你赶时间闯了红灯，结果导致车祸。",
+    axis: "坏决策 × 坏结果", cls: "qb-fault", cellCls: "cell-fault",
+    exHint: "生活一塌糊涂，且你做的决策也很糟糕"
+  }
+};
+/* 象限图布局顺序：左上 Ⅱ → 右上 Ⅰ → 左下 Ⅲ → 右下 Ⅳ */
+const CHART_ORDER = ["deserved", "badluck", "goodluck", "fault"];
+
+/* 书中“应得的奖励”8 个改进问题（咎由自取象限同样适用） */
+const IMPROVE_QS = [
+  "在做决定之前，你能获得更多或更准确的信息吗？",
+  "你能更早一点做决定吗？",
+  "你能多花一些时间做决定吗？",
+  "如果事先获知事后才了解的信息，你会改变决定吗？",
+  "有没有可能产生更好的结果？",
+  "如果有，你做出的那个不同决定能否增加这些更好的结果发生的概率？",
+  "如果重来一次，你能解释做出不同决定的原因吗？",
+  "如果重来一次，而且做出的决定相同，你能想到改进决策过程的方法吗？"
+];
+
+const STEPS = [
+  { id: "s1", title: "判断基准", tag: "标准与例子" },
+  { id: "s2", title: "事件回顾", tag: "选定象限" },
+  { id: "s3", title: "象限深挖", tag: "按象限检验", dynamic: true },
+  { id: "s4", title: "交叉检验", tag: "补充视角" }
+];
+
+/* =====================================================================
+ * 状态
+ * ===================================================================== */
+
+const LS_DRAFT = "luckbox_draft";
+const LS_REPORTS = "luckbox_reports";
+const LS_MYEX = "luckbox_myex";
+
+let view = "home";
+let cur = 0;
+let values = {};
+let reports = loadReports();
+let myex = loadMyex();          // 第 1 步四个象限的用户自填例子（长期保存）
+let viewingReport = null;
+let resetScrollNext = true;
+let reviewEdit = -1;            // 右侧回顾区当前处于编辑态的步骤索引，-1 = 全部只读
+let reviewIdx = null;           // 右侧回顾区当前展示的步骤索引，null = 跟随上一步
+
+function loadReports() {
+  try { return JSON.parse(localStorage.getItem(LS_REPORTS)) || []; } catch (e) { return []; }
+}
+function loadMyex() {
+  try { return JSON.parse(localStorage.getItem(LS_MYEX)) || {}; } catch (e) { return {}; }
+}
+function saveMyex() {
+  try { localStorage.setItem(LS_MYEX, JSON.stringify(myex)); } catch (e) {}
+}
+function saveDraft() {
+  try { localStorage.setItem(LS_DRAFT, JSON.stringify(values)); } catch (e) {}
+}
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(LS_DRAFT)) || null; } catch (e) { return null; }
+}
+function persistReports() {
+  try { localStorage.setItem(LS_REPORTS, JSON.stringify(reports)); } catch (e) {}
+}
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* =====================================================================
+ * 各步骤字段定义
+ * ===================================================================== */
+
+function step2Fields() {
+  return [
+    { key: "title", label: "给这次复盘的事项起个名字", type: "text", placeholder: "例：接受波士顿的工作", required: true },
+    { key: "decision_desc", label: "你当时决定了什么？（决策内容，可按需添加多条）", type: "list",
+      itemPlaceholder: "例：接受了波士顿的工作，放弃了佐治亚州的工作",
+      emptyHint: "点击下方按钮按需添加" },
+    { key: "result_desc", label: "实际发生了什么？（结果）", type: "textarea",
+      placeholder: "客观描述最终发生的事。" },
+    { key: "quadrant", label: "凭你的第一判断：这件事属于哪个象限？（点击四象限图中的一格）", type: "quadpick" }
+  ];
+}
+
+function step3Fields(vals) {
+  const q = vals.quadrant;
+  if (q === "deserved") {
+    return [
+      { key: "q_reason", label: "是什么原因让你觉得这个决策很好？决策过程中的哪些环节做得好？（可按需添加多条）", type: "list",
+        itemPlaceholder: "例：对坏结果发生概率的估算、做决策的依据、所获建议的质量……",
+        emptyHint: "点击下方按钮按需添加",
+        hint: "例如对坏结果（或者任何你不希望出现的结果）发生概率的估算、做决策的依据、所获建议的质量等。" },
+      { key: "improve", label: "改进空间自查（回答“是”后，请在问题下方写出原因和改进动作）", type: "yesno", items: IMPROVE_QS,
+        extraList: { key: "q_weak", label: "即使这是一个好决策，你也能从中找到一些做得不够好的地方吗？（可按需添加多条）", itemPlaceholder: "写一处做得不够好、可以改进的地方" },
+        hint: "就算你做出了一个好决策，也不意味着它就是最佳决策。不要认为事情成功了就没有教训可学。" }
+    ];
+  }
+  if (q === "badluck") {
+    return [
+      { key: "luck_why", label: "是什么原因让你觉得运气不好？（可按需添加多条）", type: "list",
+        itemPlaceholder: "写一条原因", emptyHint: "点击下方按钮按需添加" },
+      ...dualFields(vals),
+      { key: "uncontrollables", label: "请列出你做了好决策却得到坏结果的原因（至少三条）。换言之，你在最初的决策过程中无法控制或没有想到的事情有哪些？",
+        type: "list", itemPlaceholder: "写一条原因", emptyHint: "点击下方按钮按需添加" },
+      { key: "alt_results", label: "请列出可能由你的决策引发的其他结果（至少三条）。", type: "list",
+        itemPlaceholder: "写一个当时可能发生的结果", emptyHint: "点击下方按钮按需添加" }
+    ];
+  }
+  if (q === "goodluck") {
+    return [
+      { key: "luck_why", label: "是什么原因让你觉得运气很好？（可按需添加多条）", type: "list",
+        itemPlaceholder: "写一条原因", emptyHint: "点击下方按钮按需添加" },
+      ...dualFields(vals),
+      { key: "uncontrollables", label: "请列出你做了坏决策却得到好结果的原因（至少三条）。换言之，你在最初的决策过程中无法控制或没有想到的事情有哪些？",
+        type: "list", itemPlaceholder: "写一条原因", emptyHint: "点击下方按钮按需添加" },
+      { key: "alt_results", label: "请列出可能由你的决策引发的其他结果（至少三条）。", type: "list",
+        itemPlaceholder: "写一个当时可能发生的结果", emptyHint: "点击下方按钮按需添加" }
+    ];
+  }
+  /* fault：书中要求“将同样的问题运用到结果质量与决策质量都很差的情况中” */
+  return [
+    { key: "q_why_bad", label: "是什么原因让你觉得这个决策很糟糕？决策过程中的哪些环节出了问题？", type: "list",
+      itemPlaceholder: "例：信息不足、依据错误、没有估算可能性、所获建议的质量差……",
+      emptyHint: "点击下方按钮按需添加" },
+    { key: "improve", label: "改进空间自查（回答“是”后，请在问题下方写出原因和改进动作）", type: "yesno", items: IMPROVE_QS,
+      extraList: { key: "do_right", label: "即使这是一个糟糕的决策，你也能从中找到一些做对了的地方吗？（可按需添加多条）", itemPlaceholder: "写一条做对了的地方" } }
+  ];
+}
+
+const QUAD_COUNTERPART = { deserved: "goodluck", goodluck: "deserved", badluck: "fault", fault: "badluck" };
+
+/* 双运气检验：好运/坏运气象限放在第 3 步，应得/咎由放在交叉检验 */
+function dualFields(vals) {
+  const q = vals.quadrant;
+  let dualLabel, dualOptions;
+  if (q === "deserved") {
+    dualLabel = "这件事里，运气成分的情况是？";
+    dualOptions = [
+      ["also_good", "有好运气的影响", "好运气带来了部分好处"],
+      ["also_bad", "有坏运气的影响", "坏运气造成了部分损耗或波折"],
+      ["both", "两种运气兼有", "好运气和坏运气同时影响了这件事"],
+      ["no_luck", "与运气因素关系不大", "结果基本由决策质量决定"]
+    ];
+  } else if (q === "badluck") {
+    dualLabel = "在这件事里，除了已经确认的坏运气，是否还存在另一种运气？";
+    dualOptions = [
+      ["also_good", "有——同时还伴随着好运气", "它减轻了损失，或带来了额外的好处"],
+      ["none", "没有，只有这一种坏运气在起作用"],
+      ["unsure", "还不确定"]
+    ];
+  } else if (q === "goodluck") {
+    dualLabel = "在这件事里，除了已经确认的好运气，是否还存在另一种运气？";
+    dualOptions = [
+      ["also_bad", "有——同时还伴随着坏运气", "它没有主导最终结果，但让事情更曲折或更接近更糟的结局"],
+      ["none", "没有，只有这一种好运气在起作用"],
+      ["unsure", "还不确定"]
+    ];
+  } else if (q === "fault") {
+    dualLabel = "在这次“咎由自取”里，是否也有运气在起作用？";
+    dualOptions = [
+      ["also_good", "好运气", "它减轻了损失，或带来了额外的好处"],
+      ["also_bad", "坏运气", "它让事情更曲折，或更接近更糟的结局"],
+      ["both", "两者皆有", "好运气和坏运气同时影响了这件事"],
+      ["unsure", "还不确定"]
+    ];
+  } else {
+    dualLabel = "在这件事里，是否也有运气的成分？";
+    dualOptions = [
+      ["also_good", "有——伴随着好运气", "它带来了额外的好处"],
+      ["also_bad", "有——伴随着坏运气", "它让事情更曲折，或更接近更糟的结局"],
+      ["none", "没有，只有一种运气在起作用"],
+      ["unsure", "还不确定"]
+    ];
+  }
+
+  const fields = [
+    { key: "dual_type", label: dualLabel, type: "radio",
+      hint: "同一个决策可能同时被好运气和坏运气影响：一种运气主导了结果，另一种运气则改变了事情的最终严重程度。",
+      options: dualOptions }
+  ];
+
+  const dT = vals.dual_type;
+  const goodLabel = q === "deserved" ? "好运气如何作用在此事件？这个影响有多重要？" : "请描述好运气如何作用在这件事上：它是什么？它如何改变了这件事的最终严重程度？";
+  const badLabel  = q === "deserved" ? "坏运气如何作用在此事件？这个影响有多重要？" : "请描述坏运气如何作用在这件事上：它是什么？它如何改变了这件事的最终严重程度？";
+  if (dT === "unsure") {
+    fields.push({ key: "dual_why_unsure", label: "为什么还不能确定原因？", type: "textarea",
+      placeholder: "写下原因——例如：需要更多信息、两种运气的影响难以区分……" });
+  } else if (dT === "no_luck") {
+    fields.push({ key: "dual_why_no_luck", label: "为什么说这件事与运气因素关系不大？", type: "textarea",
+      placeholder: "写下你的依据——例如：同类做法的结果高度稳定，好坏主要由准备和执行决定。" });
+  } else if (dT === "both") {
+    fields.push(
+      { key: "dual_desc_bad", label: badLabel, type: "list",
+        itemPlaceholder: "写一条", emptyHint: "点击下方按钮按需添加" },
+      { key: "dual_desc_good", label: goodLabel, type: "list",
+        itemPlaceholder: "写一条", emptyHint: "点击下方按钮按需添加" }
+    );
+  } else if (dT === "also_good") {
+    fields.push({ key: "dual_desc_good", label: goodLabel, type: "list",
+      itemPlaceholder: "写一条", emptyHint: "点击下方按钮按需添加" });
+  } else if (dT === "also_bad") {
+    fields.push({ key: "dual_desc_bad", label: badLabel, type: "list",
+      itemPlaceholder: "写一条", emptyHint: "点击下方按钮按需添加" });
+  }
+  return fields;
+}
+
+function step4Fields(vals) {
+  vals = vals || values;
+  const q = vals.quadrant;
+  const WHY_GOOD = { key: "q_why_good", label: "既然结果糟糕，是什么原因让你觉得做出的决策很好？决策过程中的哪些环节做得好？（可按需添加多条）", type: "list",
+    itemPlaceholder: "例：对坏结果发生概率的估算、做决策的依据、所获建议的质量……",
+    emptyHint: "点击下方按钮按需添加",
+    hint: "例如对坏结果发生概率的估算、做决策的依据、所获建议的质量等。" };
+  const WHY_BAD = { key: "q_why_bad", label: "既然结果不错，是什么原因让你觉得做出的决策很糟糕？决策过程中的哪些环节做得不好？（可按需添加多条）", type: "list",
+    itemPlaceholder: "例：依据不足、没有估算可能性、所获建议的质量差……",
+    emptyHint: "点击下方按钮按需添加" };
+  const IMPROVE_BAD = { key: "improve", label: "改进空间自查（回答“是”后，请在问题下方写出原因和改进动作）", type: "yesno", items: IMPROVE_QS,
+    extraList: { key: "q_weak", label: "本次决策的质量不错，但是否仍有些可以改进的地方。（可按需添加多条）", itemPlaceholder: "写一处可以改进的地方" },
+    hint: "就算你做出了一个好决策，也不意味着它就是最佳决策。不要认为事情成功了就没有教训可学。" };
+  const IMPROVE_GOOD = { key: "improve", label: "改进空间自查（回答“是”后，请在问题下方写出原因和改进动作）", type: "yesno", items: IMPROVE_QS,
+    extraList: { key: "do_right", label: "虽然这次的决策质量很糟糕，但是否仍有部分做得好的地方？（可按需添加多条）", itemPlaceholder: "写一处做对了的地方" },
+    hint: "不要认为结果不错就跳过自查——对差决策的检验，恰恰是这次复盘的价值所在。" };
+
+  const ALT_RESULTS = { key: "alt_results", label: "请列出可能由你的决策引发的其他结果（至少三条）。", type: "list",
+    itemPlaceholder: "写一个当时可能发生的结果",
+    emptyHint: "点击下方按钮按需添加" };
+
+  let head = [];
+  if (q === "deserved") { head = dualFields(vals).concat([ALT_RESULTS]); }   // 第 3 步已检验决策质量，这里补运气 + 其他结果
+  else if (q === "fault") { head = dualFields(vals).concat([ALT_RESULTS]); } // 第 3 步已检验决策质量，这里补运气 + 其他结果
+  else if (q === "badluck") { head = [WHY_GOOD, IMPROVE_BAD]; }              // 第 3 步已检验运气，这里补决策质量
+  else if (q === "goodluck") { head = [WHY_BAD, IMPROVE_GOOD]; }             // 第 3 步已检验运气，这里补决策质量
+  else { head = dualFields(vals); }
+
+  return head.concat([
+    { key: "final_quadrant", label: "最终象限判断：结果不会改变，可能变化的只是你如何看待自己的决策质量——重新评估后，你会把它归入哪个象限？",
+      type: "quadpair",
+      hint: "这里只出现两个选项：你的原选择，和结局相同的另一个象限（例如结果坏的，就在“决策质量好/坏”之间重新判断）。" },
+    { key: "final_note", label: "如果调整了判断，说明你重新评估了什么；如果维持，也写下支持你的理由。", type: "textarea" },
+    { key: "conclusion", label: "一句话结论：把这次复盘最想带走的东西写成一句话", type: "textarea",
+      placeholder: "例：结果糟不代表决策错——先分清运气和能力，再决定要不要重复这个决策。" }
+  ]);
+}
+
+function step3Meta(q) {
+  const meta = {
+    deserved: { goal: "本步检验决策质量：好在哪里、哪里还能做得更好（改进空间自查）。运气成分的影响，放到下一步交叉检验中补充。" },
+    badluck: { goal: "本步先检验运气的影响：为什么认为是运气不好、是否还伴随另一种运气、好决策却得到坏结果的原因、还可能有哪些结果。决策质量的检验，放到下一步交叉检验中。" },
+    goodluck: { goal: "本步先检验运气的影响：为什么认为是运气好、是否还伴随另一种运气、坏决策却得到好结果的原因、还可能有哪些结果。决策质量的检验，放到下一步交叉检验中。" },
+    fault: { goal: "本步检验决策质量：糟在哪里、有没有做对的地方（改进空间自查）。运气成分的影响，放到下一步交叉检验中补充。" }
+  };
+  return meta[q] ? meta[q].goal : "";
+}
+function step4Meta(q) {
+  const meta = {
+    deserved: { goal: "交叉检验补运气：确认这件事里运气成分的影响，以及这个影响有多重要。" },
+    fault: { goal: "交叉检验补运气：确认这件事里运气成分的影响，以及这个影响有多重要。" },
+    badluck: { goal: "交叉检验补决策质量：结果虽然糟糕，但这个决策到底有多好——哪些环节做得好、改进空间自查，以及是否仍有做得不够好的地方。" },
+    goodluck: { goal: "交叉检验补决策质量：结果虽然不错，但这个决策到底有多糟——哪些环节做得不好、改进空间自查，以及是否仍有做得好的地方。" }
+  };
+  return meta[q] ? meta[q].goal : "";
+}
+
+/* =====================================================================
+ * 渲染
+ * ===================================================================== */
+
+const app = document.getElementById("app");
+
+function render() {
+  if (view === "home") renderHome();
+  else if (view === "wizard") renderWizard();
+  else if (view === "report") renderReport();
+  growTextareas(app);
+  if (resetScrollNext) window.scrollTo(0, 0);
+  resetScrollNext = false;
+}
+
+/* 让 textarea 自适应内容高度，完整显示已输入的文本 */
+function growTextareas(root) {
+  root.querySelectorAll("textarea").forEach(growEl);
+}
+function growEl(el) {
+  el.style.height = "auto";
+  el.style.height = (el.scrollHeight + 2) + "px";
+}
+function goRender() { resetScrollNext = true; render(); }
+
+/* ---------- 首页 ---------- */
+function renderHome() {
+  const draft = loadDraft();
+  const hasDraft = draft && draft.title;
+  let reportsHtml = "";
+  if (reports.length === 0) {
+    reportsHtml = '<p class="empty-hint">还没有已保存的复盘。完成四步流程后，报告会出现在这里。</p>';
+  } else {
+    reportsHtml = reports.map((r, i) => {
+      const q = r.values.final_quadrant || r.values.quadrant;
+      const qm = QUADS[q] || QUADS.deserved;
+      return '<div class="report-item">' +
+        '<div class="ri-main" data-open="' + i + '">' +
+          '<div class="ri-title">' + esc(r.values.title || "未命名复盘") + '</div>' +
+          '<div class="ri-meta">' + esc(r.date) + ' · ' + esc(qm.name) + '（' + esc(qm.axis) + '）</div>' +
+        '</div>' +
+        '<button class="btn danger-ghost" data-del="' + i + '">删除</button>' +
+      '</div>';
+    }).join("");
+  }
+  const exCount = CHART_ORDER.filter(k => (values["myex_" + k] || myex[k] || "").trim()).length;
+
+  app.innerHTML =
+    '<div class="narrow">' +
+    '<div class="hero">' +
+      '<div class="kicker">基于《对赌（实践版）》第一章 · 结果导向 · 四象限工具</div>' +
+      '<h1>幸运箱 · 四象限复盘</h1>' +
+      '<p>任何一个决策的结果，都由两件事共同决定：<strong>决策质量</strong>（当时的信息和依据好不好）和<strong>运气</strong>。好决策可能被坏运气拖累，差决策也可能被好运气眷顾。只看结果评判决策，你会学到错误的教训。</p>' +
+      '<p>这个工具把第一章的“幸运箱”练习拆成四个小步骤：</p>' +
+      '<ol>' +
+        '<li><strong>判断基准</strong>——看懂四象限的定义与例子，并在每个象限里写下你自己的例子（自动保存，供以后判断时参照）。</li>' +
+        '<li><strong>事件回顾</strong>——客观回顾决策与结果，在四象限图中点选你的第一判断。</li>' +
+        '<li><strong>象限深挖</strong>——按象限定重点：应得的奖励 / 咎由自取先检验决策质量，好运气 / 坏运气先检验运气的影响。</li>' +
+        '<li><strong>交叉检验</strong>——补齐另一半：应得的奖励 / 咎由自取补查运气的影响，好运气 / 坏运气补查决策质量；最后回头检验象限判断，得出结论。</li>' +
+      '</ol>' +
+      '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">' +
+        '<button class="btn" id="btn-start">' + (hasDraft ? "继续上次的复盘（" + esc(draft.title) + "）" : "开始一次复盘") + '</button>' +
+        (hasDraft ? '<button class="btn secondary" id="btn-fresh">重新开始</button>' : "") +
+      '</div>' +
+    '</div>' +
+
+    '<div class="report-list">' +
+      '<h2>已保存的复盘报告</h2>' + reportsHtml +
+      '<p class="empty-hint" style="margin-top:10px;">另外，你已在四象限中保存 ' + exCount + ' 条自己的例子（第 1 步中维护，长期保存）。</p>' +
+    '</div>' +
+    '</div>';
+
+  document.getElementById("btn-start").onclick = () => {
+    const d = loadDraft() || {};
+    // 把长期保存的例子带入
+    CHART_ORDER.forEach(k => { if (d["myex_" + k] == null && myex[k]) d["myex_" + k] = myex[k]; });
+    values = d;
+    reviewEdit = -1;
+    view = "wizard"; cur = 0; goRender();
+  };
+  const fresh = document.getElementById("btn-fresh");
+  if (fresh) fresh.onclick = () => {
+    values = {}; saveDraft();
+    reviewEdit = -1;
+    view = "wizard"; cur = 0; goRender();
+  };
+  app.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = () => { viewingReport = reports[Number(el.dataset.open)]; view = "report"; goRender(); };
+  });
+  app.querySelectorAll("[data-del]").forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      if (!confirm("确定删除这份复盘报告吗？此操作不可撤销。")) return;
+      reports.splice(Number(el.dataset.del), 1);
+      persistReports(); render();
+    };
+  });
+}
+
+/* ---------- 四象限坐标图（学习模式：含自填例子） ---------- */
+function quadChartLearn(locked) {
+  const cell = (k) => {
+    const q = QUADS[k];
+    const key = "myex_" + k;
+    const val = values[key] != null ? values[key] : (myex[k] || "");
+    return '<div class="qcell ' + q.cellCls + (locked ? " locked" : "") + '">' +
+      '<div class="qc-head"><span class="qc-num">第' + q.num + '象限</span>' +
+        '<span class="qc-name">' + esc(q.name) + '</span>' +
+        '<span class="qc-axis">' + esc(q.axis) + '</span></div>' +
+      '<div class="qc-def">' + esc(q.def) + '</div>' +
+      '<div class="qc-ex"><b>例子：</b>' + esc(q.ex) + '</div>' +
+      '<textarea data-k="' + key + '" rows="2" placeholder="写一个你自己的例子（' + esc(q.exHint) + '），会自动保存，帮助以后判断"' +
+        (locked ? " disabled" : "") + '>' + esc(val) + '</textarea>' +
+    '</div>';
+  };
+  return '<div class="field">' +
+    '<label class="field-label">四个象限（定义与例子），并在每格里写下你自己的例子</label>' +
+    '<div class="quad-chart">' +
+      '<div class="q-yaxis"><span class="ylab">好</span><span class="ytitle">决策质量</span><span class="ylab">坏</span></div>' +
+      cell("deserved") + cell("badluck") +
+      cell("goodluck") + cell("fault") +
+      '<div class="q-xaxis"><span class="xlab">好</span><span class="xtitle">结果好坏</span><span class="xlab">坏</span></div>' +
+    '</div>' +
+    '<div class="field-hint">判断口诀：先问“当时的决策依据好不好”（纵轴：决策质量），再问“最终发生的事好不好”（横轴：结果），两个答案一组合就是所在象限。</div>' +
+  '</div>';
+}
+
+/* ---------- 四象限坐标图（点选模式） ---------- */
+function quadChartPick(fieldKey, locked) {
+  const v = values[fieldKey];
+  const cells = CHART_ORDER.map(k => {
+    const q = QUADS[k];
+    const checked = v === k || (v == null && fieldKey === "final_quadrant" && values.quadrant === k);
+    return '<label class="qcell qcell-pick ' + q.cellCls + (checked ? " checked" : "") + (locked ? " locked" : "") + '">' +
+      '<input type="radio" name="' + fieldKey + '" value="' + k + '"' + (checked ? " checked" : "") + (locked ? " disabled" : "") + '>' +
+      '<div class="qc-head"><span class="qc-num">第' + q.num + '象限</span>' +
+        '<span class="qc-name">' + esc(q.name) + '</span>' +
+        '<span class="qc-axis">' + esc(q.axis) + '</span></div>' +
+      '<div class="qc-def">' + esc(q.def) + '</div>' +
+      '<div class="qc-ex"><b>例子：</b>' + esc(q.ex) + '</div>' +
+      '<div class="qc-pickmark">✓ 已选择</div>' +
+    '</label>';
+  });
+  // 顺序映射到坐标格：左上 deserved、右上 badluck、左下 goodluck、右下 fault
+  return '<div class="quad-chart">' +
+    '<div class="q-yaxis"><span class="ylab">好</span><span class="ytitle">决策质量</span><span class="ylab">坏</span></div>' +
+    cells[0] + cells[1] +
+    cells[2] + cells[3] +
+    '<div class="q-xaxis"><span class="xlab">好</span><span class="xtitle">结果好坏</span><span class="xlab">坏</span></div>' +
+  '</div>';
+}
+
+/* ---------- 第 1 步主体 ---------- */
+function step1Body(locked) {
+  const refl = values.s1_reflect;
+  return quadChartLearn(locked) +
+    '<div class="field">' +
+      '<label class="field-label">回看你的四个格子——你更容易想到哪件事？是“坏运气”作祟的事，还是“走了好运”的事？</label>' +
+      '<div class="radio-group">' +
+        [["bad", "更容易想到坏运气作祟的事"], ["good", "更容易想到走了好运的事"], ["same", "两者都容易"]].map(op =>
+          '<label class="radio-option ' + (refl === op[0] ? "checked" : "") + (locked ? " locked" : "") + '">' +
+            '<input type="radio" name="s1_reflect" value="' + op[0] + '" ' + (refl === op[0] ? "checked" : "") + (locked ? " disabled" : "") + '>' +
+            '<span>' + esc(op[1]) + '</span></label>').join("") +
+      '</div>' +
+      '<div class="field-hint">大多数人很容易把坏结果归咎于坏运气（这维护了自尊），却不愿把好结果归功于好运气（这削弱了“我很聪明”的感觉）。这个意愿不对等，正是结果导向的温床。</div>' +
+    '</div>' +
+    (refl === "bad" || refl === "good"
+      ? '<div class="field">' +
+          '<label class="field-label">为什么你更容易想到' + (refl === "bad" ? "坏运气作祟" : "走了好运") + '的事？</label>' +
+          '<textarea data-k="s1_reflect_why" rows="2" placeholder="写下你的解释——这有助于你识别自己的归因习惯。"' + (locked ? " disabled" : "") + '>' + esc(values.s1_reflect_why || "") + '</textarea>' +
+        '</div>'
+      : "");
+}
+
+/* ---------- 第 2 步主体 ---------- */
+function step2Body(locked) {
+  let html = renderFields(step2Fields(), locked);
+  return html;
+}
+
+/* ---------- 通用字段渲染 ---------- */
+function renderFields(fields, locked) {
+  return fields.map(f => renderField(f, locked)).join("");
+}
+
+function renderField(f, locked) {
+  const lk = locked ? " locked" : "";
+  const dis = locked ? " disabled" : "";
+  const v = values[f.key];
+  let body = "";
+  if (f.type === "text") {
+    body = '<input type="text" data-k="' + f.key + '"' + dis + ' value="' + esc(v || "") + '" placeholder="' + esc(f.placeholder || "") + '">';
+  } else if (f.type === "textarea") {
+    body = '<textarea data-k="' + f.key + '" rows="3"' + dis + ' placeholder="' + esc(f.placeholder || "") + '">' + esc(v || "") + '</textarea>';
+  } else if (f.type === "radio") {
+    body = '<div class="radio-group' + lk + '">' + f.options.map(op =>
+      '<label class="radio-option ' + (v === op[0] ? "checked" : "") + lk + '">' +
+        '<input type="radio" name="' + f.key + '" value="' + op[0] + '" ' + (v === op[0] ? "checked" : "") + dis + '>' +
+        '<span>' + esc(op[1]) + (op[2] ? '<span class="opt-desc">' + esc(op[2]) + '</span>' : "") + '</span>' +
+      '</label>').join("") + '</div>';
+  } else if (f.type === "yesno") {
+    const ans = v || {};
+    body = f.items.map((qtext, i) => {
+      const a = ans["i" + i];
+      let note = "";
+      if (a === "yes") {
+        note = '<div class="yn-note"><textarea data-ynnote="' + f.key + '" data-i="' + i + '" rows="2"' + dis +
+          ' placeholder="为什么是？对应的改进动作是什么？">' + esc(ans["n" + i] || "") + '</textarea></div>';
+      }
+      return '<div class="yn-block' + lk + '">' +
+        '<div class="yn-row">' +
+          '<div class="yn-q">' + (i + 1) + '. ' + esc(qtext) + '</div>' +
+          '<div class="yn-btns">' +
+            '<span class="yn-btn ' + (a === "yes" ? "picked-yes" : "") + '" data-yn="' + f.key + '" data-i="' + i + '" data-v="yes">是</span>' +
+            '<span class="yn-btn ' + (a === "no" ? "picked-no" : "") + '" data-yn="' + f.key + '" data-i="' + i + '" data-v="no">否</span>' +
+          '</div>' +
+        '</div>' + note +
+      '</div>';
+    }).join("");
+    if (f.extraList) {
+      const ex = f.extraList;
+      const rows = Array.isArray(values[ex.key]) ? values[ex.key] : [];
+      const rowsHtml = rows.length === 0
+        ? '<div class="list-empty-hint">点击下方按钮按需添加</div>'
+        : '<div class="list-rows">' + rows.map((row, ri) =>
+            '<div class="list-row">' +
+              '<span class="idx">' + (ri + 1) + '.</span>' +
+              '<textarea data-lk="' + ex.key + '" data-ri="' + ri + '" data-rk="t" rows="1"' + dis + ' placeholder="' + esc(ex.itemPlaceholder || "") + '">' + esc(row.t || "") + '</textarea>' +
+              '<button type="button" class="row-remove" data-rmrow="' + ex.key + '" data-ri="' + ri + '" title="删除本条"' + dis + '>×</button>' +
+            '</div>').join("") + '</div>';
+      body += '<div class="yn-block' + lk + '">' +
+        '<div class="yn-q"><strong>9. ' + esc(ex.label) + '</strong></div>' +
+        rowsHtml +
+        (ex.hint ? '<div class="field-hint">' + esc(ex.hint) + '</div>' : "") +
+        '<button type="button" class="list-add" data-addrow="' + ex.key + '"' + dis + '>＋ 添加一条</button>' +
+      '</div>';
+    }
+  } else if (f.type === "quadpick") {
+    body = quadChartPick(f.key, locked);
+  } else if (f.type === "quadpair") {
+    const pair = values.quadrant ? [values.quadrant, QUAD_COUNTERPART[values.quadrant]] : [];
+    body = '<div class="radio-group' + lk + '">' + pair.map(k => {
+      const qd = QUADS[k];
+      const checked = v === k || (v == null && k === values.quadrant);
+      return '<label class="radio-option ' + (checked ? "checked" : "") + lk + '">' +
+        '<input type="radio" name="' + f.key + '" value="' + k + '"' + (checked ? " checked" : "") + dis + '>' +
+        '<span><strong>' + esc(qd.name) + '</strong>（' + esc(qd.axis) + '）' +
+        '<span class="opt-desc">' + esc(qd.def) + '</span></span>' +
+      '</label>';
+    }).join("") + '</div>';
+  } else if (f.type === "list") {
+    const rows = Array.isArray(v) ? v : [];
+    const rowsHtml = rows.length === 0
+      ? (f.emptyHint ? '<div class="list-empty-hint">' + esc(f.emptyHint) + '</div>' : "")
+      : '<div class="list-rows">' + rows.map((row, ri) =>
+          '<div class="list-row">' +
+            '<span class="idx">' + (ri + 1) + '.</span>' +
+            '<textarea data-lk="' + f.key + '" data-ri="' + ri + '" data-rk="t" rows="1"' + dis + ' placeholder="' + esc(f.itemPlaceholder || "") + '">' + esc(row.t || "") + '</textarea>' +
+            '<button type="button" class="row-remove" data-rmrow="' + f.key + '" data-ri="' + ri + '" title="删除本条"' + dis + '>×</button>' +
+          '</div>').join("") + '</div>';
+    body = rowsHtml +
+      '<button type="button" class="list-add" data-addrow="' + f.key + '"' + dis + '>＋ 添加一条</button>';
+  }
+  const hint = f.hint ? '<div class="field-hint">' + esc(f.hint) + '</div>' : "";
+  return '<div class="field' + lk + '"><label class="field-label">' + esc(f.label) + '</label>' + body + hint + '</div>';
+}
+
+/* ---------- 步骤主体分发 ---------- */
+function stepBody(i, locked) {
+  const id = STEPS[i].id;
+  const q = values.quadrant;
+  if (id === "s1") return step1Body(locked);
+  if (id === "s2") return step2Body(locked);
+  if (id === "s3") {
+    if (!q) return '<div class="field-hint">请先回到上一步选定象限，本步的问题会按象限自动生成。</div>';
+    return '<div class="book-quote">当前象限：<strong>' + esc(QUADS[q].name) + '（' + esc(QUADS[q].axis) + '）</strong> — ' +
+      esc(QUADS[q].def) + '<br>' + esc(step3Meta(q)) + '</div>' +
+      renderFields(step3Fields(values), locked);
+  }
+  if (id === "s4") {
+    const head = q ? '<div class="book-quote">当前象限：<strong>' + esc(QUADS[q].name) + '（' + esc(QUADS[q].axis) + '）</strong> — ' +
+      esc(QUADS[q].def) + '<br>' + esc(step4Meta(q)) + '</div>' : "";
+    return head + renderFields(step4Fields(values), locked);
+  }
+  return renderFields(step4Fields(values), locked);
+}
+
+/* ---------- 向导 ---------- */
+function renderWizard() {
+  const chips = STEPS.map((s, i) => {
+    const cls = i === cur ? "active" : (i < cur ? "done" : "");
+    const numTxt = i < cur ? "✓" : String(i + 1);
+    let chip = '<span class="step-chip ' + cls + '" data-goto="' + i + '">' +
+      '<span class="num">' + numTxt + '</span>' + esc(s.title) + '</span>';
+    if (i < STEPS.length - 1) chip += '<span class="step-sep">›</span>';
+    return chip;
+  }).join("");
+
+  const isLast = cur === STEPS.length - 1;
+  const titleOk = !(STEPS[cur].id === "s2" && !values.title);
+  const navRow =
+    '<div class="nav-row">' +
+      (cur > 0 ? '<button class="btn secondary" id="btn-prev">← 上一步</button>' : '<button class="btn secondary" id="btn-home">← 返回首页</button>') +
+      '<span class="nav-note">' + (titleOk ? "" : "请先填写事项名称") + '</span>' +
+      '<button class="btn" id="btn-next" ' + (titleOk ? "" : "disabled") + '>' + (isLast ? "保存并生成报告" : "下一步 →") + '</button>' +
+    '</div>';
+
+  /* 左栏：当前步骤 */
+  const step = STEPS[cur];
+  const leftCard =
+    '<div class="step-card">' +
+      '<div class="step-head">' +
+        '<span class="tag">第 ' + (cur + 1) + ' 步 · ' + esc(step.tag) + '</span>' +
+        '<h2>' + esc(step.title) + '</h2>' +
+      '</div>' +
+      '<div class="step-body">' + stepBody(cur, false) + navRow + '</div>' +
+    '</div>';
+
+  /* 右栏：回顾之前的步骤（带步骤切换；默认只读，可解锁编辑） */
+  let rightCol = "";
+  if (cur > 0) {
+    if (reviewIdx == null || reviewIdx < 0 || reviewIdx > cur - 1) reviewIdx = cur - 1;
+    const i = reviewIdx;
+    const editing = reviewEdit === i;
+    const card =
+      '<div class="review-card">' +
+        '<div class="review-head">' +
+          '<div class="rv-nav">' +
+            (cur > 1 ? '<button class="rv-arrow" data-rvprev' + (i <= 0 ? " disabled" : "") + '>‹</button>' : "") +
+            '<h3>回顾 · 第 ' + (i + 1) + ' 步 ' + esc(STEPS[i].title) + '（' + (i + 1) + '/' + cur + '）</h3>' +
+            (cur > 1 ? '<button class="rv-arrow" data-rvnext' + (i >= cur - 1 ? " disabled" : "") + '>›</button>' : "") +
+          '</div>' +
+          '<button class="btn-edit ' + (editing ? "on" : "") + '" data-review="' + i + '">' + (editing ? "完成" : "编辑") + '</button>' +
+        '</div>' +
+        '<div class="review-body' + (editing ? "" : " locked") + '">' + stepBody(i, !editing) + '</div>' +
+      '</div>';
+    rightCol = '<div class="review-col">' + card + '</div>';
+  }
+
+  app.innerHTML =
+    '<div class="stepper">' + chips + '</div>' +
+    (cur > 0 ? '<div class="split">' + leftCard + rightCol + '</div>' : leftCard);
+
+  bindFieldEvents(app);
+  app.querySelectorAll("[data-goto]").forEach(el => {
+    el.onclick = () => { cur = Number(el.dataset.goto); reviewEdit = -1; reviewIdx = null; goRender(); };
+  });
+  app.querySelectorAll("[data-review]").forEach(el => {
+    el.onclick = () => {
+      reviewEdit = (reviewEdit === reviewIdx) ? -1 : reviewIdx;
+      render();
+    };
+  });
+  app.querySelectorAll("[data-rvprev]").forEach(el => {
+    el.onclick = () => { reviewIdx = Math.max(0, reviewIdx - 1); reviewEdit = -1; render(); };
+  });
+  app.querySelectorAll("[data-rvnext]").forEach(el => {
+    el.onclick = () => { reviewIdx = Math.min(cur - 1, reviewIdx + 1); reviewEdit = -1; render(); };
+  });
+  const prev = document.getElementById("btn-prev");
+  if (prev) prev.onclick = () => { cur--; reviewEdit = -1; reviewIdx = null; goRender(); };
+  const home = document.getElementById("btn-home");
+  if (home) home.onclick = () => { view = "home"; goRender(); };
+  document.getElementById("btn-next").onclick = () => {
+    if (isLast) finishReport();
+    else { cur++; reviewEdit = -1; reviewIdx = null; goRender(); }
+  };
+}
+
+/* ---------- 字段事件 ---------- */
+function bindFieldEvents(root) {
+  root.querySelectorAll("input[data-k], textarea[data-k]").forEach(el => {
+    el.addEventListener("input", () => {
+      const k = el.dataset.k;
+      values[k] = el.value; saveDraft();
+      growEl(el);
+      if (k.indexOf("myex_") === 0) { myex[k.slice(5)] = el.value; saveMyex(); }
+      if (k === "title") {
+        const btn = document.getElementById("btn-next");
+        const note = document.querySelector(".nav-note");
+        const ok = !!el.value.trim();
+        if (btn) btn.disabled = !ok;
+        if (note) note.textContent = ok ? "" : "请先填写事项名称";
+      }
+    });
+  });
+
+  root.querySelectorAll('input[type="radio"]').forEach(el => {
+    el.addEventListener("change", () => { values[el.name] = el.value; saveDraft(); render(); });
+  });
+
+  root.querySelectorAll(".yn-btn").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.yn;
+      if (!values[k]) values[k] = {};
+      const cur0 = values[k]["i" + el.dataset.i];
+      values[k]["i" + el.dataset.i] = (cur0 === el.dataset.v) ? "" : el.dataset.v;
+      saveDraft(); render();
+    };
+  });
+
+  root.querySelectorAll("textarea[data-ynnote]").forEach(el => {
+    el.addEventListener("input", () => {
+      const k = el.dataset.ynnote;
+      if (!values[k]) values[k] = {};
+      values[k]["n" + el.dataset.i] = el.value; saveDraft();
+      growEl(el);
+    });
+  });
+
+  root.querySelectorAll("[data-addrow]").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.addrow;
+      if (!Array.isArray(values[k])) values[k] = [];
+      values[k].push({}); saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("[data-rmrow]").forEach(el => {
+    el.onclick = () => {
+      values[el.dataset.rmrow].splice(Number(el.dataset.ri), 1); saveDraft(); render();
+    };
+  });
+  root.querySelectorAll("textarea[data-lk]").forEach(el => {
+    el.addEventListener("input", () => {
+      values[el.dataset.lk][Number(el.dataset.ri)][el.dataset.rk] = el.value; saveDraft();
+      growEl(el);
+    });
+  });
+}
+
+/* ---------- 保存报告 ---------- */
+function finishReport() {
+  const clean = JSON.parse(JSON.stringify(values));
+  Object.keys(clean).forEach(k => {
+    const arr = clean[k];
+    if (Array.isArray(arr) && arr.length && arr.every(x => typeof x === "object" && x !== null)) {
+      clean[k] = arr.filter(row => Object.values(row).some(val => val != null && val !== ""));
+    }
+  });
+  const report = { id: Date.now(), date: new Date().toLocaleString("zh-CN"), values: clean };
+  reports.unshift(report);
+  persistReports();
+  localStorage.removeItem(LS_DRAFT);
+  values = {};
+  viewingReport = report;
+  view = "report";
+  goRender();
+}
+
+/* ---------- 报告 ---------- */
+function rv(label, val) {
+  const has = val != null && val !== "" && !(Array.isArray(val) && val.length === 0);
+  const body = !has
+    ? '<div class="rv-value empty">（未填写）</div>'
+    : Array.isArray(val)
+      ? '<ul class="rv-list">' + val.map(x => "<li>" + esc(typeof x === "object" ? (x.t || "") : x) + "</li>").join("") + '</ul>'
+      : '<div class="rv-value">' + esc(val) + '</div>';
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+
+/* 内容为已构建好的 HTML（内部已转义）时使用 */
+function rvHtml(label, html) {
+  const body = (html == null || html === "") ? '<div class="rv-value empty">（未填写）</div>' : html;
+  return '<div class="rv-item"><div class="rv-label">' + esc(label) + '</div>' + body + '</div>';
+}
+
+function renderReport() {
+  const r = viewingReport;
+  if (!r) { view = "home"; goRender(); return; }
+  const v = r.values;
+  const fq = v.final_quadrant || v.quadrant;
+  const qm = QUADS[fq] || QUADS.deserved;
+
+  const s1 = '<div class="report-section"><h3><span class="sn">1</span>复盘对象与象限判断</h3>' +
+    rv("事项名称", v.title) +
+    rv("你当时决定了什么", v.decision_desc) +
+    rv("实际发生了什么", v.result_desc) +
+    rv("第一判断象限", v.quadrant ? QUADS[v.quadrant].name + "（" + QUADS[v.quadrant].axis + "）" : "") +
+  '</div>';
+
+  const q = v.quadrant;
+  let s2 = '<div class="report-section"><h3><span class="sn">2</span>象限深挖 · ' + esc(q ? QUADS[q].name : "") + '）</h3>';
+  if (q && QUADS[q]) {
+    step3Fields(v).forEach(f => {
+      if (f.type === "radio") {
+        const opt = (f.options || []).find(o => o[0] === v[f.key]);
+        s2 += rv(f.label, opt ? opt[1] : "");
+      } else if (f.type === "yesno") {
+        const ans = v[f.key] || {};
+        const ynHtml = f.items.map((qtext, i) => {
+          const a = ans["i" + i];
+          if (!a) return "";
+          let line = '<div class="rv-yn"><b>' + (a === "yes" ? "是" : "否") + '</b> — ' + esc(qtext);
+          if (a === "yes" && ans["n" + i]) line += '<br><span style="color:var(--text-secondary);font-size:13px;">└ ' + esc(ans["n" + i]) + '</span>';
+          return line + '</div>';
+        }).join("");
+        if (ynHtml) s2 += rvHtml(f.label, ynHtml);
+        if (f.extraList && v[f.extraList.key]) s2 += rv(f.extraList.label, v[f.extraList.key]);
+      } else {
+        s2 += rv(f.label, v[f.key]);
+      }
+    });
+  }
+  s2 += '</div>';
+
+  let s3 = '<div class="report-section"><h3><span class="sn">3</span>交叉检验与结论</h3>';
+  if (q && QUADS[q]) {
+    step4Fields(v).forEach(f => {
+      if (f.key === "final_quadrant" || f.key === "conclusion") return;
+      if (f.type === "radio") {
+        const opt = (f.options || []).find(o => o[0] === v[f.key]);
+        s3 += rv(f.label, opt ? opt[1] : "");
+      } else if (f.type === "yesno") {
+        const ans = v[f.key] || {};
+        const ynHtml = f.items.map((qtext, i) => {
+          const a = ans["i" + i];
+          if (!a) return "";
+          let line = '<div class="rv-yn"><b>' + (a === "yes" ? "是" : "否") + '</b> — ' + esc(qtext);
+          if (a === "yes" && ans["n" + i]) line += '<br><span style="color:var(--text-secondary);font-size:13px;">└ ' + esc(ans["n" + i]) + '</span>';
+          return line + '</div>';
+        }).join("");
+        if (ynHtml) s3 += rvHtml(f.label, ynHtml);
+        if (f.extraList && v[f.extraList.key]) s3 += rv(f.extraList.label, v[f.extraList.key]);
+      } else {
+        s3 += rv(f.label, v[f.key]);
+      }
+    });
+  }
+  s3 += rv("最终象限判断", fq ? QUADS[fq].name + "（" + QUADS[fq].axis + "）" : "") +
+  '</div>';
+
+  app.innerHTML =
+    '<div class="narrow">' +
+    '<div class="report-head">' +
+      '<div class="kicker" style="font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;">幸运箱复盘报告 · 基于《对赌（实践版）》第一章</div>' +
+      '<h1>' + esc(v.title || "未命名复盘") + '</h1>' +
+      '<div class="meta">保存于 ' + esc(r.date) + '</div>' +
+      '<span class="quadrant-banner ' + qm.cls + '">' + esc(qm.name) + ' · ' + esc(qm.axis) + '</span>' +
+      (v.conclusion ? '<div class="lesson-banner"><span class="lb-label">一句话结论</span>' + esc(v.conclusion) + '</div>' : "") +
+      '<div class="actions-row">' +
+        '<button class="btn secondary" id="btn-copy">复制为文字</button>' +
+        '<button class="btn secondary" id="btn-print">打印 / 导出 PDF</button>' +
+        '<button class="btn secondary" id="btn-back">← 返回首页</button>' +
+      '</div>' +
+    '</div>' + s1 + s2 + s3 +
+    '<div class="actions-row no-print"><button class="btn secondary" id="btn-back2">← 返回首页</button></div>' +
+    '</div>';
+
+  document.getElementById("btn-back").onclick = backHome;
+  document.getElementById("btn-back2").onclick = backHome;
+  document.getElementById("btn-print").onclick = () => window.print();
+  document.getElementById("btn-copy").onclick = () => {
+    const text = reportToText(r);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => flashCopied(), () => fallbackCopy(text));
+    } else fallbackCopy(text);
+  };
+  function backHome() { view = "home"; viewingReport = null; goRender(); }
+}
+
+function pairs_push(arr, label, items) {
+  if (items && items.length) arr.push([label, items]);
+}
+
+function reportToText(r) {
+  const v = r.values;
+  const fq = v.final_quadrant || v.quadrant;
+  const qm = QUADS[fq] || QUADS.deserved;
+  const L = [];
+  L.push("幸运箱复盘报告：" + (v.title || "未命名"));
+  L.push("象限判断：" + qm.name + "（" + qm.axis + "）");
+  if (v.conclusion) L.push("一句话结论：" + v.conclusion);
+  L.push("");
+  const section = (name, pairs) => {
+    L.push("【" + name + "】");
+    pairs.forEach(([label, val]) => {
+      if (val == null || val === "" || (Array.isArray(val) && val.length === 0)) return;
+      if (Array.isArray(val)) {
+        L.push(label + "：");
+        val.forEach(x => L.push("  - " + (typeof x === "object" ? (x.t || "") : x)));
+      } else L.push(label + "：" + val);
+    });
+    L.push("");
+  };
+  section("复盘对象", [
+    ["决策内容", v.decision_desc], ["实际结果", v.result_desc],
+    ["第一判断象限", v.quadrant ? QUADS[v.quadrant].name : ""]
+  ]);
+  if (v.quadrant && QUADS[v.quadrant]) {
+    const pairs = [];
+    step3Fields(v).forEach(f => {
+      if (f.type === "radio") {
+        const opt = (f.options || []).find(o => o[0] === v[f.key]);
+        if (opt) pairs.push([f.label, opt[1]]);
+      } else if (f.type === "yesno") {
+        const ans = v[f.key] || {};
+        const items = [];
+        f.items.forEach((qtext, i) => {
+          const a = ans["i" + i];
+          if (!a) return;
+          let line = qtext + "：" + (a === "yes" ? "是" : "否");
+          if (a === "yes" && ans["n" + i]) line += "（" + ans["n" + i] + "）";
+          items.push(line);
+        });
+        if (items.length) pairs.push([f.label, items]);
+        if (f.extraList && v[f.extraList.key]) pairs.push([f.extraList.label, v[f.extraList.key]]);
+      } else {
+        pairs.push([f.label, v[f.key]]);
+      }
+    });
+    section("象限深挖 · " + QUADS[v.quadrant].name, pairs);
+  }
+  if (v.quadrant && QUADS[v.quadrant]) {
+    const xPairs = [];
+    step4Fields(v).forEach(f => {
+      if (f.key === "final_quadrant" || f.key === "conclusion") return;
+      if (f.type === "radio") {
+        const opt = (f.options || []).find(o => o[0] === v[f.key]);
+        if (opt) xPairs.push([f.label, opt[1]]);
+      } else if (f.type === "yesno") {
+        const ans = v[f.key] || {};
+        const items = [];
+        f.items.forEach((qtext, i) => {
+          const a = ans["i" + i];
+          if (!a) return;
+          let line = qtext + "：" + (a === "yes" ? "是" : "否");
+          if (a === "yes" && ans["n" + i]) line += "（" + ans["n" + i] + "）";
+          items.push(line);
+        });
+        if (items.length) pairs_push(xPairs, f.label, items);
+        if (f.extraList && v[f.extraList.key]) xPairs.push([f.extraList.label, v[f.extraList.key]]);
+      } else {
+        xPairs.push([f.label, v[f.key]]);
+      }
+    });
+    xPairs.push(["最终象限判断", fq ? QUADS[fq].name : ""]);
+    section("交叉检验与结论", xPairs);
+  }
+  return L.join("\n");
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); flashCopied(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+function flashCopied() {
+  const btn = document.getElementById("btn-copy");
+  if (!btn) return;
+  const old = btn.textContent;
+  btn.textContent = "已复制 ✓";
+  setTimeout(() => { btn.textContent = old; }, 1500);
+}
+
+/* ---------- 启动 ---------- */
+render();
+</script>
+</body>
+</html>
