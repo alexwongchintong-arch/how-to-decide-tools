@@ -33,12 +33,19 @@
 克隆本仓库后，双击任意 `.html` 文件即可在浏览器中打开使用，无需安装任何东西。
 
 ```bash
-git clone https://github.com/<你的用户名>/duidui-decision-tools.git
+git clone https://github.com/alexwongchintong-arch/duidui-decision-tools.git
 ```
 
-**方式二：GitHub Pages**
-在仓库设置中开启 GitHub Pages（Source 选 `main` 分支根目录），即可通过
-`https://<你的用户名>.github.io/duidui-decision-tools/` 访问落地页和所有工具。
+**方式二：GitHub Pages（在线预览）**
+在仓库设置中开启 GitHub Pages（Source 选 `main` 分支根目录）后，所有工具即可在线直接使用，无需下载：
+
+- 落地页（工具导航）：`https://alexwongchintong-arch.github.io/duidui-decision-tools/`
+- 每个工具都可以单独打开，例如：
+  - 辅助决策工具箱：`https://alexwongchintong-arch.github.io/duidui-decision-tools/工具箱/辅助决策工具箱/`
+  - 六步决策向导：`https://alexwongchintong-arch.github.io/duidui-decision-tools/辅助决策/six-step.html`
+  - 幸运箱：`https://alexwongchintong-arch.github.io/duidui-decision-tools/复盘/luck-box.html`
+
+> 本仓库所有工具均为免构建的单文件 HTML，文件路径即访问路径，Pages 开启后无需任何额外配置。
 
 > 提示：工具箱会读取同域下独立工具沉淀的基准库数据。如果你希望"独立工具填写、工具箱汇总"的联动生效，请保持整个仓库在同一域名/同一本地环境下访问（GitHub Pages 天然满足）。
 
